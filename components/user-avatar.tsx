@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { User, Crown } from "lucide-react" // Import Crown icon
+import { User, Crown } from "lucide-react"
+import { getDiscordAvatarUrl } from "@/lib/discord" // Import the helper
 
 interface UserData {
   username: string
-  avatar?: string
+  avatar?: string // This is the avatar hash
+  discordId: string // Add discordId to UserData
   premium: {
     count: number
     expiresAt?: string
@@ -52,7 +54,7 @@ export function UserAvatar() {
   return (
     <div className="flex items-center space-x-2">
       <img
-        src={user.avatar || "/placeholder.svg?height=32&width=32"}
+        src={getDiscordAvatarUrl(user.discordId, user.avatar) || "/placeholder.svg"} // Use the helper here
         alt={user.username}
         className="w-8 h-8 rounded-full"
       />

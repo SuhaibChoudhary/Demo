@@ -20,7 +20,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const user = await verifyAuth(request)
 
+  console.log("AdminLayout: User Discord ID:", user?.discordId)
+  console.log("AdminLayout: Config Admin Discord ID:", config.adminDiscordId)
+
   if (!user || user.discordId !== config.adminDiscordId) {
+    console.log("AdminLayout: Redirecting to /dashboard - User is not admin or not authenticated.")
     redirect("/dashboard")
   }
 
