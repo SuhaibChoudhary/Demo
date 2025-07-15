@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react" // Import useEffect
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Server, Crown, User, Bell, Settings, Menu, X, Bot, LogOut } from "lucide-react"
+import { Home, Server, Crown, User, Bell, Settings, Menu, X, Bot, LogOut, ShieldCheck } from "lucide-react" // Import ShieldCheck
 import { Button } from "@/components/ui/button"
+import { config } from "@/lib/config" // Import config
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -17,8 +18,28 @@ const navigation = [
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false) // New state for admin status
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    checkAdminStatus()
+  }, [])
+
+  const checkAdminStatus = async () => {
+    try {
+      const response = await fetch("/api/user")
+      if (response.ok) {
+        const data = await response.json()
+        setIsAdmin(data.user.discordId === config.adminDiscordId)
+      } else {
+        setIsAdmin(false)
+      }
+    } catch (error) {
+      console.error("Failed to check admin status:", error)
+      setIsAdmin(false)
+    }
+  }
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -67,9 +88,9 @@ export function Sidebar() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center">
               <div className="w-10 h-10 neumorphic rounded-xl flex items-center justify-center mr-3">
-                <Bot className="w-6 h-6 text-primary-400" /> {/* Changed to primary-400 */}
+                <Bot className="w-6 h-6 text-primary-400" />
               </div>
-              <span className="text-xl font-bold text-white">Noisy</span> {/* Updated bot name */}
+              <span className="text-xl font-bold text-white">Noisy</span>
             </div>
             <Button onClick={() => setIsOpen(false)} className="lg:hidden p-1" variant="ghost">
               <X className="w-5 h-5" />
@@ -89,8 +110,8 @@ export function Sidebar() {
                     flex items-center px-4 py-3 rounded-xl transition-all duration-200
                     ${
                       isActive
-                        ? "bg-primary-600/20 text-primary-300 neumorphic-inset" // Changed to primary colors
-                        : "text-foreground hover:text-white hover:bg-primary-500/10" // Changed to primary colors
+                        ? "bg-primary-600/20 text-primary-300 neumorphic-inset"
+                        : "text-foreground hover:text-white hover:bg-primary-500/10"
                     }
                   `}
                 >
@@ -99,6 +120,23 @@ export function Sidebar() {
                 </Link>
               )
             })}
+            {isAdmin && (
+              <Link
+                href="/dashboard/admin"
+                onClick={() => setIsOpen(false)}
+                className={`
+                  flex items-center px-4 py-3 rounded-xl transition-all duration-200
+                  ${
+                    pathname.startsWith("/dashboard/admin")
+                      ? "bg-primary-600/20 text-primary-300 neumorphic-inset"
+                      : "text-foreground hover:text-white hover:bg-primary-500/10"
+                  }
+                `}
+              >
+                <ShieldCheck className="w-5 h-5 mr-3" />
+                <span className="font-medium">Admin Panel</span>
+              </Link>
+            )}
           </nav>
 
           {/* Footer */}

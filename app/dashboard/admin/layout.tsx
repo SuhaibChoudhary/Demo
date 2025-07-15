@@ -2,7 +2,8 @@ import type React from "react"
 import { redirect } from "next/navigation"
 import { verifyAuth } from "@/lib/auth"
 import { config } from "@/lib/config"
-import { headers } from "next/headers" // Use headers for server-side access
+import { headers } from "next/headers"
+import { AdminSidebar } from "@/components/admin-sidebar" // Import AdminSidebar
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const headersList = headers()
@@ -15,14 +16,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         return cookie ? { name, value: cookie.split("=")[1] } : undefined
       },
     },
-  } as any // Cast to any to match NextRequest structure for verifyAuth
+  } as any
 
   const user = await verifyAuth(request)
 
   if (!user || user.discordId !== config.adminDiscordId) {
-    // Redirect to dashboard or a forbidden page if not admin
     redirect("/dashboard")
   }
 
-  return <>{children}</>
+  return (
+    <div className="flex min-h-[calc(100vh-theme(spacing.8))] lg:min-h-screen">
+      <AdminSidebar />
+      <main className="flex-1 p-4 lg:p-8">{children}</main>
+    </div>
+  )
 }
