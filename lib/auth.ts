@@ -22,29 +22,34 @@ export interface AuthTokenPayload {
 
 export async function verifyAuth(request: NextRequest): Promise<AuthUser | null> {
   try {
+    const rawCookieHeader = request.headers.get("cookie")
+    console.log("verifyAuth: Raw Cookie Header:", rawCookieHeader || "[No Cookie Header]")
+
     const token = request.cookies.get(config.cookies.authToken)?.value
-    console.log("verifyAuth: Token found in cookies?", !!token) // Log if token exists
+    console.log(`verifyAuth: Looking for cookie '${config.cookies.authToken}'. Found:`, !!token)
+    if (token) {
+      console.log(`verifyAuth: Extracted token (first 10 chars): ${token.substring(0, 10)}...`)
+    }
 
     if (!token) {
+      console.log("verifyAuth: No auth token found in request cookies.")
       return null
     }
 
     if (!config.jwt.secret) {
-      console.error("verifyAuth: JWT_SECRET is not configured. Please ensure it's set in your environment variables.")
-      return null // Cannot verify without a secret
+      console.error("verifyAuth: JWT_SECRET is not configured. Cannot verify token.")
+      return null
     }
 
-    // Verify JWT token
     let decoded: AuthTokenPayload
     try {
       decoded = jwt.verify(token, config.jwt.secret) as AuthTokenPayload
       console.log("verifyAuth: JWT decoded successfully for discordId:", decoded.discordId)
     } catch (jwtError) {
-      console.error("verifyAuth: JWT verification failed:", jwtError)
+      console.error("verifyAuth: JWT verification failed:", jwtError instanceof Error ? jwtError.message : jwtError)
       return null
     }
 
-    // Verify user still exists in database
     const db = await getDatabase()
     const user = await db.collection("users").findOne({ discordId: decoded.discordId })
     console.log("verifyAuth: User found in DB?", !!user)
@@ -54,7 +59,6 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
       return null
     }
 
-    // Update last seen
     await db.collection("users").updateOne({ discordId: decoded.discordId }, { $set: { lastSeen: new Date() } })
     console.log(`verifyAuth: Updated lastSeen for user ${decoded.discordId}`)
 
@@ -65,11 +69,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
       premium: user.premium,
     }
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      console.error("verifyAuth: Invalid JWT token:", error.message)
-    } else {
-      console.error("verifyAuth: Auth verification error (top-level catch):", error)
-    }
+    console.error("verifyAuth: Auth verification error (top-level catch):", error)
     return null
   }
 }
@@ -78,7 +78,7 @@ export function generateAuthToken(user: Pick<AuthUser, "discordId" | "username">
   if (!config.jwt.secret) {
     throw new Error("JWT_SECRET is not configured. Cannot generate token.")
   }
-  return jwt.sign(
+  const token = jwt.sign(
     {
       discordId: user.discordId,
       username: user.username,
@@ -86,6 +86,8 @@ export function generateAuthToken(user: Pick<AuthUser, "discordId" | "username">
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn },
   )
+  console.log("generateAuthToken: Token generated. Length:", token.length)
+  return token
 }
 
 export { getClientIP, getUserAgent } from "./utils"

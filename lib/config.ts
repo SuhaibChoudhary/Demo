@@ -16,3 +16,10 @@ export const config = {
   },
   adminDiscordId: process.env.ADMIN_DISCORD_ID, // New: Admin Discord ID for restricted access
 }
+
+// Sanity check for JWT_SECRET
+if (!config.jwt.secret || config.jwt.secret.length < 32) {
+  console.warn(
+    "WARNING: JWT_SECRET is either missing or too short. This is a security risk and can cause authentication issues. Please set a long, random string for JWT_SECRET in your environment variables.",
+  )
+}
