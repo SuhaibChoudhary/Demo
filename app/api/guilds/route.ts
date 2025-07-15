@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const discordApi = new DiscordAPI(discordAccessToken)
     const userDiscordGuilds = await discordApi.getUserGuilds()
 
-    const guildsWithBotStatus: (Guild & { canManage: boolean })[] = []
+    const guildsToDisplay: (Guild & { canManage: boolean })[] = []
 
     for (const discordGuild of userDiscordGuilds) {
       // Check if the user has manage guild or admin permissions
@@ -59,18 +59,37 @@ export async function GET(request: NextRequest) {
         hasDiscordPermission(discordGuild.permissions, DiscordPermissions.ADMINISTRATOR) ||
         hasDiscordPermission(discordGuild.permissions, DiscordPermissions.MANAGE_GUILD)
 
+      // Only include guilds the user can manage
+      if (!canManage) {
+        continue // Skip guilds the user cannot manage
+      }
+
       // Fetch guild from DB to get botAdded status and config
       const dbGuild = await db.collection<Guild>("guilds").findOne({ guildId: discordGuild.id })
 
-      if (dbGuild && dbGuild.botAdded) {
-        // Only include guilds where the bot is added
-        guildsWithBotStatus.push({
-          ...dbGuild,
-          name: discordGuild.name, // Use Discord's current name
-          icon: discordGuild.icon, // Use Discord's current icon
-          canManage: canManage,
-        })
-      }
+      guildsToDisplay.push({
+        // Use data from DB if available, otherwise default values
+        _id: dbGuild?._id, // MongoDB ObjectId
+        guildId: discordGuild.id,
+        name: discordGuild.name, // Always use Discord's current name
+        icon: discordGuild.icon, // Always use Discord's current icon
+        ownerId: dbGuild?.ownerId || discordGuild.owner ? user.discordId : "unknown", // Use DB ownerId or Discord owner if current user is owner
+        botAdded: dbGuild?.botAdded || false, // Default to false if not in DB
+        premium: dbGuild?.premium || { active: false }, // Default to non-premium
+        config: dbGuild?.config || {
+          // Default config if not in DB
+          prefix: "!",
+          language: "en",
+          automod: false,
+          logging: false,
+          welcomeMessages: false,
+          musicEnabled: false,
+          moderationLogs: false,
+        },
+        createdAt: dbGuild?.createdAt || new Date(), // Use DB createdAt or current date
+        updatedAt: dbGuild?.updatedAt || new Date(), // Use DB updatedAt or current date
+        canManage: canManage,
+      })
     }
 
     await Logger.log({
@@ -79,10 +98,10 @@ export async function GET(request: NextRequest) {
       userId: user.discordId,
       ip,
       userAgent,
-      metadata: { count: guildsWithBotStatus.length },
+      metadata: { count: guildsToDisplay.length },
     })
 
-    return NextResponse.json({ guilds: guildsWithBotStatus })
+    return NextResponse.json({ guilds: guildsToDisplay })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Get guilds error"
     await Logger.logError("get_guilds_internal_error", errorMessage, undefined, { ip, userAgent })
