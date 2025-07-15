@@ -35,12 +35,12 @@ export async function GET(request: NextRequest) {
     let discordUser: any
     let discordGuilds: any[]
     let userId: string
-    let discordAccessToken: string // Declare variable for access token
+    let discordAccessToken: string
 
     try {
       const tokenData = await exchangeCodeForToken(code)
-      discordAccessToken = tokenData.access_token // Store the access token
-      const discord = new DiscordAPI(discordAccessToken) // Use the access token
+      discordAccessToken = tokenData.access_token
+      const discord = new DiscordAPI(discordAccessToken)
       discordUser = await discord.getCurrentUser()
       discordGuilds = await discord.getUserGuilds()
       userId = discordUser.id
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
             lastSeen: new Date(),
           },
           $setOnInsert: {
-            premiumStatus: "free",
+            premium: { count: 0 }, // Initialize premium count to 0 for new users
             createdAt: new Date(),
           },
         },
@@ -106,11 +106,10 @@ export async function GET(request: NextRequest) {
               icon: guildIconUrl, // Store full URL
               ownerId: discordGuild.owner ? user.discordId : null, // Only set if user is owner
               memberCount: 0, // Will be updated by bot or later API calls
-              botAdded: false, // Default to false, bot will update this
-              premiumStatus: false, // Default to false
               updatedAt: new Date(),
             },
             $setOnInsert: {
+              premium: { active: false }, // Initialize guild premium to false
               createdAt: new Date(),
               config: {
                 prefix: "!",
@@ -143,12 +142,11 @@ export async function GET(request: NextRequest) {
         maxAge: config.cookies.maxAge,
         path: "/",
       })
-      // Set the Discord access token cookie
       response.cookies.set(config.cookies.discordAccessToken, discordAccessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: config.cookies.maxAge, // Same expiry as auth token
+        maxAge: config.cookies.maxAge,
         path: "/",
       })
 

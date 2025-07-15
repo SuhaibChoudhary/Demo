@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { verifyAuth } from "@/lib/auth"
 import { getDatabase } from "@/lib/mongodb"
-import { DiscordAPI, DiscordPermissions, hasDiscordPermission } from "@/lib/discord" // Import hasDiscordPermission
+import { DiscordAPI, DiscordPermissions, hasDiscordPermission } from "@/lib/discord"
 import { Logger } from "@/lib/logger"
 import { getClientIP, getUserAgent } from "@/lib/utils"
+import type { Guild } from "@/lib/models/Guild"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const ip = getClientIP(request)
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const db = await getDatabase()
-    const guild = await db.collection("guilds").findOne({ guildId: params.id })
+    const guild = await db.collection<Guild>("guilds").findOne({ guildId: params.id })
 
     if (!guild) {
       await Logger.logError("guild_not_found", "Guild not found in DB", user.discordId, {
@@ -35,7 +36,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Guild not found" }, { status: 404 })
     }
 
-    // Fetch user's guilds from Discord to get real-time permissions
     const discordAccessToken = request.cookies.get("discord-access-token")?.value
     if (!discordAccessToken) {
       await Logger.log({
@@ -46,7 +46,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         userAgent,
         metadata: { guildId: params.id, reason: "Cannot verify Discord permissions without token" },
       })
-      // If token is missing, we cannot verify permissions, so deny access to config
       return NextResponse.json({ error: "Missing Discord access token for permission check" }, { status: 403 })
     }
 
@@ -61,7 +60,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         userAgent,
         guildId: params.id,
       })
-      // If Discord API fails, we cannot reliably check permissions, so deny by default
       return NextResponse.json({ error: "Failed to verify Discord permissions" }, { status: 500 })
     }
 
@@ -96,7 +94,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       metadata: { guildId: params.id, canManage },
     })
 
-    return NextResponse.json({ guild, canManage }) // Return canManage status
+    return NextResponse.json({ guild, canManage })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Get guild error"
     await Logger.logError("get_guild_error", errorMessage, undefined, { ip, userAgent, guildId: params.id })
@@ -123,11 +121,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const body = await request.json()
-    const { config: newConfig } = body // Renamed to newConfig to avoid conflict
+    const { config: newConfig } = body
 
     const db = await getDatabase()
 
-    // Fetch user's guilds from Discord to get real-time permissions
     const discordAccessToken = request.cookies.get("discord-access-token")?.value
     if (!discordAccessToken) {
       await Logger.log({
@@ -177,7 +174,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Insufficient Discord permissions" }, { status: 403 })
     }
 
-    // Update guild configuration
     const result = await db.collection("guilds").findOneAndUpdate(
       { guildId: params.id },
       {
@@ -210,7 +206,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Guild not found" }, { status: 404 })
     }
 
-    // Log the configuration change
     await db.collection("audit_logs").insertOne({
       guildId: params.id,
       userId: user.discordId,

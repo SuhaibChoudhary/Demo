@@ -5,8 +5,10 @@ export interface Guild {
   icon?: string
   ownerId: string
   memberCount: number
-  botAdded: boolean
-  premiumStatus: boolean
+  premium: {
+    active: boolean // Whether this guild is currently premium
+    expiresAt?: Date // When this guild's premium status expires
+  }
   config: GuildConfig
   createdAt: Date
   updatedAt: Date

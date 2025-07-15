@@ -12,7 +12,10 @@ const sampleData = {
       username: "DiscordUser#1234",
       email: "user@example.com",
       avatar: "https://cdn.discordapp.com/avatars/123456789012345678/avatar.png",
-      premium_plan: "gold",
+      premium: {
+        count: 2, // User has 2 premium slots
+        expiresAt: new Date("2025-12-31"),
+      },
       created_at: new Date("2023-01-15"),
       last_login: new Date(),
     },
@@ -25,8 +28,11 @@ const sampleData = {
       icon: "https://cdn.discordapp.com/icons/987654321098765432/icon.png",
       owner_id: "123456789012345678",
       member_count: 1250,
+      premium: {
+        active: true, // This guild is premium
+        expiresAt: new Date("2025-12-31"),
+      },
       bot_added: true,
-      premium: true,
       created_at: new Date("2023-02-01"),
     },
     {
@@ -35,8 +41,11 @@ const sampleData = {
       icon: "https://cdn.discordapp.com/icons/876543210987654321/icon.png",
       owner_id: "123456789012345678",
       member_count: 890,
+      premium: {
+        active: false, // This guild is not premium
+        expiresAt: undefined,
+      },
       bot_added: true,
-      premium: false,
       created_at: new Date("2023-03-15"),
     },
   ],
@@ -97,6 +106,8 @@ async function seedDatabase() {
 
     // Insert sample data
     for (const [collectionName, data] of Object.entries(sampleData)) {
+      // Clear existing data before inserting new
+      await db.collection(collectionName).deleteMany({})
       if (data.length > 0) {
         await db.collection(collectionName).insertMany(data)
         console.log(`Inserted ${data.length} documents into ${collectionName}`)

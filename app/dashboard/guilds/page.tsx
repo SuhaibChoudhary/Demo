@@ -12,7 +12,10 @@ interface Guild {
   icon?: string
   memberCount: number
   botAdded: boolean
-  premiumStatus: boolean
+  premium: {
+    active: boolean
+    expiresAt?: string
+  }
   config: {
     prefix: string
     language: string
@@ -49,8 +52,8 @@ export default function GuildsPage() {
     return (
       <div className="max-w-6xl mx-auto animate-fade-in">
         <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-rose-200">Loading your servers...</p>
+          <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-foreground">Loading your servers...</p>
         </div>
       </div>
     )
@@ -61,7 +64,7 @@ export default function GuildsPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Your Servers</h1>
-        <p className="text-rose-200">Manage your Discord servers and bot settings</p>
+        <p className="text-foreground">Manage your Discord servers and bot settings</p>
       </div>
 
       {/* Search */}
@@ -71,7 +74,7 @@ export default function GuildsPage() {
           placeholder="Search servers..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-md neumorphic-inset bg-transparent border-0 text-white placeholder-rose-300"
+          className="max-w-md neumorphic-inset bg-transparent border-0 text-white placeholder-foreground"
         />
       </div>
 
@@ -80,28 +83,30 @@ export default function GuildsPage() {
         <div className="neumorphic rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-rose-200 text-sm">Total Servers</p>
+              <p className="text-foreground text-sm">Total Servers</p>
               <p className="text-2xl font-bold text-white">{guilds.length}</p>
             </div>
-            <Server className="w-8 h-8 text-pink-400" />
+            <Server className="w-8 h-8 text-primary-400" />
           </div>
         </div>
         <div className="neumorphic rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-rose-200 text-sm">Total Members</p>
+              <p className="text-foreground text-sm">Total Members</p>
               <p className="text-2xl font-bold text-white">
                 {guilds.reduce((acc, guild) => acc + guild.memberCount, 0).toLocaleString()}
               </p>
             </div>
-            <Users className="w-8 h-8 text-pink-400" />
+            <Users className="w-8 h-8 text-primary-400" />
           </div>
         </div>
         <div className="neumorphic rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-rose-200 text-sm">Premium Servers</p>
-              <p className="text-2xl font-bold text-white">{guilds.filter((g) => g.premiumStatus).length}</p>
+              <p className="text-foreground text-sm">Premium Servers</p>
+              <p className="text-2xl font-bold text-white">
+                {guilds.filter((g) => g.premium.active && new Date(g.premium.expiresAt || 0) > new Date()).length}
+              </p>
             </div>
             <Crown className="w-8 h-8 text-yellow-400" />
           </div>
@@ -124,7 +129,9 @@ export default function GuildsPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-white truncate">{guild.name}</h3>
                 <div className="flex items-center space-x-2 mt-1">
-                  {guild.premiumStatus && <Crown className="w-4 h-4 text-yellow-400" />}
+                  {guild.premium.active && new Date(guild.premium.expiresAt || 0) > new Date() && (
+                    <Crown className="w-4 h-4 text-yellow-400" />
+                  )}
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
                       guild.botAdded ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
@@ -136,13 +143,13 @@ export default function GuildsPage() {
               </div>
             </div>
 
-            <div className="flex justify-between text-sm text-rose-200 mb-4">
+            <div className="flex justify-between text-sm text-foreground mb-4">
               <span>{guild.memberCount.toLocaleString()} members</span>
               <span>Prefix: {guild.config.prefix}</span>
             </div>
 
             <Link href={`/dashboard/guild/${guild.guildId}`}>
-              <Button className="w-full bg-gradient-to-r from-pink-600 to-fuchsia-600 hover:from-pink-700 hover:to-fuchsia-700 text-white rounded-xl">
+              <Button className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl">
                 <Settings className="w-4 h-4 mr-2" />
                 Configure
                 <ChevronRight className="w-4 h-4 ml-auto" />
@@ -154,9 +161,9 @@ export default function GuildsPage() {
 
       {filteredGuilds.length === 0 && (
         <div className="text-center py-12">
-          <Server className="w-16 h-16 text-rose-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-rose-200 mb-2">No servers found</h3>
-          <p className="text-rose-300">Try adjusting your search terms</p>
+          <Server className="w-16 h-16 text-primary-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">No servers found</h3>
+          <p className="text-foreground">Try adjusting your search terms</p>
         </div>
       )}
     </div>

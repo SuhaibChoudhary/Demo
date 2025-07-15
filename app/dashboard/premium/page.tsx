@@ -1,112 +1,64 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Crown, Check, Zap, Star, Shield, Gift, XCircle, CheckCircle } from "lucide-react"
+import { Crown, Check, Zap, Star, Shield, XCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import type { PremiumPlan } from "@/lib/models/PremiumPlan" // Import PremiumPlan
 
-const plans = [
+const plans: PremiumPlan[] = [
   {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    current: false,
-    features: ["Up to 5 servers", "Basic moderation", "Standard support", "Core commands"],
-    color: "gray",
+    count: 1,
+    price: 3,
+    features: ["1 Premium Slot", "Basic moderation", "Standard support", "Core commands"],
   },
   {
-    name: "Gold",
-    price: "$4.99",
-    period: "month",
+    count: 2,
+    price: 5,
     popular: true,
-    features: [
-      "Up to 25 servers",
-      "Advanced moderation",
-      "Priority support",
-      "Custom commands",
-      "Music features",
-      "Welcome messages",
-    ],
-    color: "yellow",
+    features: ["2 Premium Slots", "Advanced moderation", "Priority support", "Custom commands", "Music features"],
   },
   {
-    name: "Diamond",
-    price: "$9.99",
-    period: "month",
+    count: 4,
+    price: 9,
     features: [
-      "Unlimited servers",
+      "4 Premium Slots",
       "AI-powered moderation",
       "24/7 premium support",
       "Custom branding",
       "Advanced analytics",
-      "API access",
-      "Beta features",
     ],
-    color: "blue",
   },
 ]
 
 export default function PremiumPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly")
-  const [currentPlan, setCurrentPlan] = useState("free")
+  const [userPremium, setUserPremium] = useState<{ count: number; expiresAt?: string } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [redeemCode, setRedeemCode] = useState("")
-  const [isRedeeming, setIsRedeeming] = useState(false)
-  const [redeemMessage, setRedeemMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
-    fetchPremiumStatus()
+    fetchUserPremiumStatus()
   }, [])
 
-  const fetchPremiumStatus = async () => {
+  const fetchUserPremiumStatus = async () => {
     setLoading(true)
     try {
-      const userResponse = await fetch("/api/user")
-      if (userResponse.ok) {
-        const userData = await userResponse.json()
-        setCurrentPlan(userData.user.premiumStatus)
+      const response = await fetch("/api/user")
+      if (response.ok) {
+        const data = await response.json()
+        setUserPremium(data.user.premium)
+      } else {
+        setMessage({ type: "error", text: "Failed to load your premium status." })
       }
     } catch (error) {
       console.error("Failed to fetch premium status:", error)
+      setMessage({ type: "error", text: "An error occurred while loading premium status." })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleRedeemCode = async () => {
-    setIsRedeeming(true)
-    setRedeemMessage(null)
-    try {
-      const response = await fetch("/api/redeem", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: redeemCode }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setRedeemMessage({ type: "success", text: data.message })
-        setCurrentPlan(data.newPlan) // Update current plan immediately
-        setRedeemCode("") // Clear input
-      } else {
-        const errorData = await response.json()
-        setRedeemMessage({ type: "error", text: errorData.error || "Failed to redeem code." })
-      }
-    } catch (error) {
-      console.error("Error redeeming code:", error)
-      setRedeemMessage({ type: "error", text: "An error occurred during redemption." })
-    } finally {
-      setIsRedeeming(false)
-    }
-  }
-
-  // Update plans with current status
-  const updatedPlans = plans.map((plan) => ({
-    ...plan,
-    current: plan.name.toLowerCase() === currentPlan,
-  }))
+  const isPremiumActive = userPremium?.expiresAt && new Date(userPremium.expiresAt) > new Date()
 
   if (loading) {
     return (
@@ -126,10 +78,42 @@ export default function PremiumPage() {
         <div className="inline-flex items-center justify-center w-16 h-16 neumorphic rounded-2xl mb-4">
           <Crown className="w-8 h-8 text-primary-400" />
         </div>
-        <h1 className="text-4xl font-bold text-white mb-4">Upgrade to Premium</h1>
+        <h1 className="text-4xl font-bold text-white mb-4">Unlock Premium Features</h1>
         <p className="text-xl text-foreground max-w-2xl mx-auto">
-          Unlock powerful features and take your Discord server to the next level
+          Purchase premium slots to activate advanced features on your Discord servers.
         </p>
+      </div>
+
+      {/* User's Current Premium Status */}
+      <div className="neumorphic rounded-2xl p-6 mb-8 text-center">
+        <h2 className="text-2xl font-bold text-white mb-3">Your Current Premium</h2>
+        <p className="text-foreground text-lg mb-2">
+          Available Slots: <span className="font-semibold text-white">{userPremium?.count || 0}</span>
+        </p>
+        {isPremiumActive && userPremium?.expiresAt ? (
+          <p className="text-foreground text-sm">
+            Subscription active until:{" "}
+            <span className="font-semibold text-white">{new Date(userPremium.expiresAt).toLocaleDateString()}</span>
+          </p>
+        ) : (
+          <p className="text-foreground text-sm">No active premium subscription.</p>
+        )}
+        {message && (
+          <div
+            className={`mt-4 p-3 rounded-xl flex items-center justify-center ${
+              message.type === "success"
+                ? "bg-green-500/20 border border-green-500/30 text-green-200"
+                : "bg-red-500/20 border border-red-500/30 text-red-200"
+            }`}
+          >
+            {message.type === "success" ? (
+              <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+            ) : (
+              <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+            )}
+            <p className="text-sm">{message.text}</p>
+          </div>
+        )}
       </div>
 
       {/* Billing Toggle */}
@@ -161,9 +145,9 @@ export default function PremiumPage() {
 
       {/* Pricing Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-        {updatedPlans.map((plan) => (
+        {plans.map((plan) => (
           <div
-            key={plan.name}
+            key={plan.count}
             className={`
               relative neumorphic rounded-2xl p-8 transition-all duration-200
               ${plan.popular ? "ring-2 ring-primary-500 scale-105" : ""}
@@ -178,23 +162,13 @@ export default function PremiumPage() {
               </div>
             )}
 
-            {plan.current && (
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-green-600 text-white px-4 py-1 rounded-full text-sm font-medium">Current Plan</span>
-              </div>
-            )}
-
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">{plan.count} Premium Slots</h3>
               <div className="flex items-baseline justify-center">
                 <span className="text-4xl font-bold text-white">
-                  {billingCycle === "yearly" && plan.price !== "$0"
-                    ? `$${(Number.parseFloat(plan.price.slice(1)) * 12 * 0.8).toFixed(2)}`
-                    : plan.price}
+                  {billingCycle === "yearly" ? `$${(plan.price * 12 * 0.8).toFixed(2)}` : `$${plan.price.toFixed(2)}`}
                 </span>
-                {plan.price !== "$0" && (
-                  <span className="text-foreground ml-2">/{billingCycle === "yearly" ? "year" : plan.period}</span>
-                )}
+                <span className="text-foreground ml-2">/{billingCycle === "yearly" ? "year" : "month"}</span>
               </div>
             </div>
 
@@ -211,71 +185,16 @@ export default function PremiumPage() {
               className={`
                 w-full py-3 rounded-xl font-medium transition-all duration-200
                 ${
-                  plan.current
-                    ? "bg-gray-600 text-gray-300 cursor-not-allowed"
-                    : plan.popular
-                      ? "bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white animate-glow"
-                      : "bg-white/10 hover:bg-white/20 text-white"
+                  plan.popular
+                    ? "bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white animate-glow"
+                    : "bg-white/10 hover:bg-white/20 text-white"
                 }
               `}
-              disabled={plan.current}
             >
-              {plan.current ? "Current Plan" : `Upgrade to ${plan.name}`}
+              Purchase {plan.count} Slots
             </Button>
           </div>
         ))}
-      </div>
-
-      {/* Redeem Code Section */}
-      <div className="neumorphic rounded-2xl p-8 mb-12">
-        <div className="flex items-center mb-6">
-          <Gift className="w-6 h-6 text-primary-400 mr-3" />
-          <h2 className="text-xl font-semibold text-white">Redeem Code</h2>
-        </div>
-        <p className="text-foreground mb-4">Have a premium redeem code? Enter it below to activate your plan.</p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Input
-            type="text"
-            placeholder="Enter your redeem code"
-            value={redeemCode}
-            onChange={(e) => setRedeemCode(e.target.value)}
-            className="flex-1 neumorphic-inset bg-transparent border-0 text-white placeholder-foreground"
-            disabled={isRedeeming}
-          />
-          <Button
-            onClick={handleRedeemCode}
-            disabled={isRedeeming || !redeemCode.trim()}
-            className="bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium"
-          >
-            {isRedeeming ? (
-              <div className="flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                Redeeming...
-              </div>
-            ) : (
-              <>
-                <Gift className="w-5 h-5 mr-2" />
-                Redeem
-              </>
-            )}
-          </Button>
-        </div>
-        {redeemMessage && (
-          <div
-            className={`mt-4 p-3 rounded-xl flex items-center ${
-              redeemMessage.type === "success"
-                ? "bg-green-500/20 border border-green-500/30 text-green-200"
-                : "bg-red-500/20 border border-red-500/30 text-red-200"
-            }`}
-          >
-            {redeemMessage.type === "success" ? (
-              <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-            ) : (
-              <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-            )}
-            <p className="text-sm">{redeemMessage.text}</p>
-          </div>
-        )}
       </div>
 
       {/* Features Comparison */}

@@ -5,7 +5,7 @@ import { Logger } from "@/lib/logger"
 import { getClientIP, getUserAgent } from "@/lib/utils"
 import { config } from "@/lib/config"
 import type { RedeemCode } from "@/lib/models/RedeemCode"
-import type { GeneratedCode } from "@/lib/models/GeneratedCode" // Declare the GeneratedCode type
+import type { GeneratedCode } from "@/lib/models/GeneratedCode"
 
 // Helper to generate a random alphanumeric code
 function generateRandomCode(length = 16): string {
@@ -36,13 +36,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 })
     }
 
-    const { numCodes, plan, expiryDays } = await request.json()
+    const { numCodes, premiumCount, expiryDays } = await request.json()
 
     if (!numCodes || typeof numCodes !== "number" || numCodes < 1 || numCodes > 100) {
       return NextResponse.json({ error: "Invalid number of codes (1-100 allowed)" }, { status: 400 })
     }
-    if (!["gold", "diamond"].includes(plan)) {
-      return NextResponse.json({ error: "Invalid plan specified" }, { status: 400 })
+    if (![1, 2, 4].includes(premiumCount)) {
+      return NextResponse.json({ error: "Invalid premium count specified" }, { status: 400 })
     }
     if (expiryDays !== undefined && (typeof expiryDays !== "number" || expiryDays < 1)) {
       return NextResponse.json({ error: "Invalid expiry days" }, { status: 400 })
@@ -53,18 +53,18 @@ export async function POST(request: NextRequest) {
     const codesToInsert: RedeemCode[] = []
 
     for (let i = 0; i < numCodes; i++) {
-      const code = generateRandomCode(20) // Generate a 20-character code
+      const code = generateRandomCode(20)
       const expiresAt = expiryDays ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined
 
       codesToInsert.push({
         code,
-        plan,
+        premiumCount, // Use premiumCount
         expiresAt,
         createdAt: new Date(),
       })
       generated.push({
         code,
-        plan,
+        premiumCount,
         expiresAt: expiresAt?.toISOString(),
       })
     }
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       userId: user.discordId,
       ip,
       userAgent,
-      metadata: { numCodes, plan, expiryDays, generatedCodesCount: generated.length },
+      metadata: { numCodes, premiumCount, expiryDays, generatedCodesCount: generated.length },
     })
 
     return NextResponse.json({ success: true, codes: generated })

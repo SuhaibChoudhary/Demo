@@ -19,12 +19,12 @@ async function setupDatabase() {
     const collections = [
       "users",
       "guilds",
-      "premium_subscriptions",
+      "premium_subscriptions", // This might become less relevant with the new model, but keeping for now
       "notifications",
       "audit_logs",
       "custom_commands",
       "logs",
-      "redeem_codes", // New collection for redeem codes
+      "redeem_codes",
     ]
 
     for (const collectionName of collections) {

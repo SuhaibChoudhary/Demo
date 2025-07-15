@@ -9,10 +9,11 @@ interface UserProfile {
   username: string
   email: string
   joinDate: string
-  plan: string
+  premiumCount: number // Changed from plan
+  premiumExpiresAt?: string // New field
   serversManaged: number
   totalMembers: number
-  avatar?: string // This will now be the full URL
+  avatar?: string
 }
 
 export default function ProfilePage() {
@@ -21,10 +22,11 @@ export default function ProfilePage() {
     username: "",
     email: "",
     joinDate: "",
-    plan: "",
+    premiumCount: 0,
+    premiumExpiresAt: undefined,
     serversManaged: 0,
     totalMembers: 0,
-    avatar: "/placeholder.svg?height=96&width=96", // Default placeholder
+    avatar: "/placeholder.svg?height=96&width=96",
   })
   const [originalProfile, setOriginalProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -44,14 +46,15 @@ export default function ProfilePage() {
         const fetchedProfile: UserProfile = {
           username: data.user.username,
           email: data.user.email,
-          joinDate: data.user.createdAt, // Assuming createdAt is the join date
-          plan: data.user.premiumStatus,
+          joinDate: data.user.createdAt,
+          premiumCount: data.user.premium?.count || 0, // Access premium.count
+          premiumExpiresAt: data.user.premium?.expiresAt, // Access premium.expiresAt
           serversManaged: data.stats.totalGuilds,
           totalMembers: data.stats.totalMembers,
-          avatar: data.user.avatar || "/placeholder.svg?height=96&width=96", // Use Discord avatar or placeholder
+          avatar: data.user.avatar || "/placeholder.svg?height=96&width=96",
         }
         setProfile(fetchedProfile)
-        setOriginalProfile(fetchedProfile) // Store original for reset
+        setOriginalProfile(fetchedProfile)
       } else {
         console.error("Failed to fetch user profile:", response.statusText)
         setSaveMessage({ type: "error", text: "Failed to load profile data." })
@@ -82,7 +85,7 @@ export default function ProfilePage() {
       if (response.ok) {
         setSaveMessage({ type: "success", text: "Profile updated successfully!" })
         setIsEditing(false)
-        setOriginalProfile(profile) // Update original profile to new saved state
+        setOriginalProfile(profile)
       } else {
         const errorData = await response.json()
         setSaveMessage({ type: "error", text: errorData.error || "Failed to save changes." })
@@ -97,7 +100,7 @@ export default function ProfilePage() {
 
   const handleCancelEdit = () => {
     if (originalProfile) {
-      setProfile(originalProfile) // Revert to original data
+      setProfile(originalProfile)
     }
     setIsEditing(false)
     setSaveMessage(null)
@@ -108,17 +111,17 @@ export default function ProfilePage() {
       label: "Servers Managed",
       value: profile.serversManaged,
       icon: Server,
-      color: "text-blue-400",
+      color: "text-primary-400",
     },
     {
       label: "Total Members",
       value: profile.totalMembers.toLocaleString(),
       icon: User,
-      color: "text-green-400",
+      color: "text-primary-400",
     },
     {
-      label: "Current Plan",
-      value: profile.plan,
+      label: "Premium Slots",
+      value: profile.premiumCount,
       icon: Crown,
       color: "text-yellow-400",
     },
@@ -126,16 +129,19 @@ export default function ProfilePage() {
       label: "Member Since",
       value: profile.joinDate ? new Date(profile.joinDate).toLocaleDateString() : "N/A",
       icon: Calendar,
-      color: "text-purple-400",
+      color: "text-primary-400",
     },
   ]
+
+  const isPremiumActive =
+    profile.premiumCount > 0 && profile.premiumExpiresAt && new Date(profile.premiumExpiresAt) > new Date()
 
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto animate-fade-in">
         <div className="text-center py-12">
-          <div className="w-16 h-16 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-rose-200">Loading profile...</p>
+          <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-foreground">Loading profile...</p>
         </div>
       </div>
     )
@@ -146,7 +152,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">User Profile</h1>
-        <p className="text-gray-400">Manage your account settings and view your statistics</p>
+        <p className="text-foreground">Manage your account settings and view your statistics</p>
       </div>
 
       {saveMessage && (
@@ -175,17 +181,22 @@ export default function ProfilePage() {
                 <img src={profile.avatar || "/placeholder.svg"} alt="Profile" className="w-20 h-20 rounded-full" />
               </div>
               <h2 className="text-xl font-semibold text-white mb-1">{profile.username}</h2>
-              <p className="text-gray-400 text-sm">{profile.email}</p>
+              <p className="text-foreground text-sm">{profile.email}</p>
               <div className="mt-3">
                 <span
                   className={`
                   inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                  ${profile.plan === "gold" ? "bg-yellow-500/20 text-yellow-400" : "bg-gray-500/20 text-gray-400"}
+                  ${isPremiumActive ? "bg-yellow-500/20 text-yellow-400" : "bg-gray-500/20 text-gray-400"}
                 `}
                 >
                   <Crown className="w-3 h-3 mr-1" />
-                  {profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)} Plan
+                  {isPremiumActive ? "Premium Active" : "Free Plan"}
                 </span>
+                {isPremiumActive && profile.premiumExpiresAt && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Expires: {new Date(profile.premiumExpiresAt).toLocaleDateString()}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -207,7 +218,7 @@ export default function ProfilePage() {
               <div key={index} className="neumorphic rounded-2xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-400 text-sm">{stat.label}</p>
+                    <p className="text-foreground text-sm">{stat.label}</p>
                     <p className="text-2xl font-bold text-white">{stat.value}</p>
                   </div>
                   <stat.icon className={`w-8 h-8 ${stat.color}`} />
@@ -225,7 +236,7 @@ export default function ProfilePage() {
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
                   Username
                 </label>
                 <Input
@@ -239,7 +250,7 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                   Email Address
                 </label>
                 <Input
@@ -291,8 +302,8 @@ export default function ProfilePage() {
                   time: "2 hours ago",
                 },
                 {
-                  action: "Upgraded to Gold plan",
-                  server: null,
+                  action: "Activated premium for Dev Community", // Example activity
+                  server: "Dev Community",
                   time: "1 day ago",
                 },
                 {
@@ -307,9 +318,9 @@ export default function ProfilePage() {
                 >
                   <div>
                     <p className="text-white font-medium">{activity.action}</p>
-                    {activity.server && <p className="text-gray-400 text-sm">{activity.server}</p>}
+                    {activity.server && <p className="text-foreground text-sm">{activity.server}</p>}
                   </div>
-                  <span className="text-gray-500 text-sm">{activity.time}</span>
+                  <span className="text-foreground text-sm">{activity.time}</span>
                 </div>
               ))}
             </div>

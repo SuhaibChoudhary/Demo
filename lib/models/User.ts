@@ -5,11 +5,14 @@ export interface User {
   discriminator: string
   avatar?: string
   email?: string
-  premiumStatus: "free" | "gold" | "diamond"
-  premiumExpiry?: Date
+  premium: {
+    count: number // Number of premium slots the user has
+    expiresAt?: Date // When the user's premium subscription expires
+  }
   guilds: string[]
   createdAt: Date
   lastLogin: Date
+  lastSeen?: Date
 }
 
 export interface UserStats {

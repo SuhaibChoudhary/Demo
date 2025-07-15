@@ -2,7 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import { Save, Globe, Shield, MessageSquare, Volume2, Eye, Settings, ArrowLeft, Lock } from "lucide-react"
+import {
+  Save,
+  Globe,
+  Shield,
+  MessageSquare,
+  Volume2,
+  Eye,
+  Settings,
+  ArrowLeft,
+  Lock,
+  Crown,
+  CheckCircle,
+  XCircle,
+} from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,8 +31,20 @@ interface GuildConfig {
   moderationLogs: boolean
 }
 
+interface GuildData {
+  guildId: string
+  name: string
+  icon?: string
+  premium: {
+    active: boolean
+    expiresAt?: string
+  }
+  config: GuildConfig
+}
+
 export default function GuildConfigPage() {
   const params = useParams()
+  const [guildData, setGuildData] = useState<GuildData | null>(null)
   const [config, setConfig] = useState<GuildConfig>({
     prefix: "!",
     language: "en",
@@ -31,30 +56,41 @@ export default function GuildConfigPage() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [canManage, setCanManage] = useState(false) // New state for permissions
+  const [canManage, setCanManage] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [userPremiumCount, setUserPremiumCount] = useState(0)
+  const [isActivatingPremium, setIsActivatingPremium] = useState(false)
+  const [premiumMessage, setPremiumMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
-    fetchGuildConfig()
+    fetchGuildAndUserPremium()
   }, [params.id])
 
-  const fetchGuildConfig = async () => {
+  const fetchGuildAndUserPremium = async () => {
     setLoading(true)
     setErrorMessage(null)
+    setPremiumMessage(null)
     try {
-      const response = await fetch(`/api/guilds/${params.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setConfig(data.guild.config)
-        setCanManage(data.canManage) // Set canManage status
+      const guildResponse = await fetch(`/api/guilds/${params.id}`)
+      if (guildResponse.ok) {
+        const guildData = await guildResponse.json()
+        setGuildData(guildData.guild)
+        setConfig(guildData.guild.config)
+        setCanManage(guildData.canManage)
       } else {
-        const errorData = await response.json()
+        const errorData = await guildResponse.json()
         setErrorMessage(errorData.error || "Failed to load configuration.")
-        setCanManage(false) // Ensure no management if load fails
+        setCanManage(false)
+      }
+
+      const userResponse = await fetch("/api/user")
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        setUserPremiumCount(userData.user.premium?.count || 0)
       }
     } catch (error) {
-      console.error("Failed to fetch guild config:", error)
-      setErrorMessage("An error occurred while fetching configuration.")
+      console.error("Failed to fetch data:", error)
+      setErrorMessage("An error occurred while fetching data.")
       setCanManage(false)
     } finally {
       setLoading(false)
@@ -74,9 +110,8 @@ export default function GuildConfigPage() {
       })
 
       if (response.ok) {
-        // Show success notification
         console.log("Configuration saved successfully")
-        setErrorMessage(null) // Clear any previous error
+        setErrorMessage(null)
       } else {
         const errorData = await response.json()
         setErrorMessage(errorData.error || "Failed to save changes.")
@@ -89,6 +124,42 @@ export default function GuildConfigPage() {
     }
   }
 
+  const handleActivatePremium = async () => {
+    setIsActivatingPremium(true)
+    setPremiumMessage(null)
+    try {
+      const response = await fetch(`/api/guilds/${params.id}/activate-premium`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setPremiumMessage({ type: "success", text: data.message })
+        setUserPremiumCount(data.newPremiumCount)
+        // Update guildData to reflect new premium status
+        setGuildData((prev) =>
+          prev
+            ? {
+                ...prev,
+                premium: { active: true, expiresAt: data.guildPremiumExpiresAt },
+              }
+            : null,
+        )
+      } else {
+        const errorData = await response.json()
+        setPremiumMessage({ type: "error", text: errorData.error || "Failed to activate premium." })
+      }
+    } catch (error) {
+      console.error("Error activating premium:", error)
+      setPremiumMessage({ type: "error", text: "An error occurred while activating premium." })
+    } finally {
+      setIsActivatingPremium(false)
+    }
+  }
+
   const languages = [
     { code: "en", name: "English" },
     { code: "es", name: "Spanish" },
@@ -96,6 +167,9 @@ export default function GuildConfigPage() {
     { code: "de", name: "German" },
     { code: "ja", name: "Japanese" },
   ]
+
+  const isGuildPremiumActive =
+    guildData?.premium?.active && guildData.premium.expiresAt && new Date(guildData.premium.expiresAt) > new Date()
 
   if (loading) {
     return (
@@ -119,7 +193,7 @@ export default function GuildConfigPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Server Configuration</h1>
-          <p className="text-foreground">Customize your bot settings for this server</p>
+          <p className="text-foreground">Customize your bot settings for {guildData?.name || "this server"}</p>
         </div>
       </div>
 
@@ -263,6 +337,69 @@ export default function GuildConfigPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Premium Activation */}
+          <div className="neumorphic rounded-2xl p-6">
+            <div className="flex items-center mb-4">
+              <Crown className="w-6 h-6 text-yellow-400 mr-3" />
+              <h3 className="text-lg font-semibold text-white">Server Premium</h3>
+            </div>
+            {premiumMessage && (
+              <div
+                className={`mb-4 p-3 rounded-xl flex items-center ${
+                  premiumMessage.type === "success"
+                    ? "bg-green-500/20 border border-green-500/30 text-green-200"
+                    : "bg-red-500/20 border border-red-500/30 text-red-200"
+                }`}
+              >
+                {premiumMessage.type === "success" ? (
+                  <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+                ) : (
+                  <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+                )}
+                <p className="text-sm">{premiumMessage.text}</p>
+              </div>
+            )}
+            {isGuildPremiumActive ? (
+              <>
+                <p className="text-foreground mb-2">
+                  This server is currently <span className="font-semibold text-white">Premium</span>.
+                </p>
+                {guildData?.premium.expiresAt && (
+                  <p className="text-foreground text-sm mb-4">
+                    Expires: {new Date(guildData.premium.expiresAt).toLocaleDateString()}
+                  </p>
+                )}
+                <Button disabled className="w-full bg-gray-600 text-gray-300 cursor-not-allowed rounded-xl">
+                  Premium Active
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-foreground mb-4">
+                  Activate premium features for this server. You have{" "}
+                  <span className="font-semibold text-white">{userPremiumCount}</span> premium slots available.
+                </p>
+                <Button
+                  onClick={handleActivatePremium}
+                  disabled={!canManage || userPremiumCount <= 0 || isActivatingPremium}
+                  className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium"
+                >
+                  {isActivatingPremium ? (
+                    <div className="flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                      Activating...
+                    </div>
+                  ) : (
+                    <>
+                      <Crown className="w-5 h-5 mr-2" />
+                      Activate Premium
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+
           {/* Quick Actions */}
           <div className="neumorphic rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>

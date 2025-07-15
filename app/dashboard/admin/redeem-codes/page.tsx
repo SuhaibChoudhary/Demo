@@ -4,16 +4,11 @@ import { useState } from "react"
 import { Gift, PlusCircle, Copy, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-
-interface GeneratedCode {
-  code: string
-  plan: string
-  expiresAt?: string
-}
+import type { GeneratedCode } from "@/lib/models/GeneratedCode" // Import GeneratedCode
 
 export default function GenerateRedeemCodesPage() {
   const [numCodes, setNumCodes] = useState(1)
-  const [plan, setPlan] = useState<"gold" | "diamond">("gold")
+  const [premiumCount, setPremiumCount] = useState(1) // Changed from plan
   const [expiryDays, setExpiryDays] = useState<number | undefined>(undefined)
   const [generatedCodes, setGeneratedCodes] = useState<GeneratedCode[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
@@ -32,7 +27,7 @@ export default function GenerateRedeemCodesPage() {
         },
         body: JSON.stringify({
           numCodes,
-          plan,
+          premiumCount, // Use premiumCount
           expiryDays,
         }),
       })
@@ -106,21 +101,24 @@ export default function GenerateRedeemCodesPage() {
           </div>
 
           <div>
-            <label htmlFor="plan" className="block text-sm font-medium text-foreground mb-2">
-              Premium Plan
+            <label htmlFor="premiumCount" className="block text-sm font-medium text-foreground mb-2">
+              Premium Slots Granted
             </label>
             <select
-              id="plan"
-              value={plan}
-              onChange={(e) => setPlan(e.target.value as "gold" | "diamond")}
+              id="premiumCount"
+              value={premiumCount}
+              onChange={(e) => setPremiumCount(Number(e.target.value))}
               className="w-full neumorphic-inset bg-transparent border-0 text-white rounded-lg p-3 disabled:opacity-50"
               disabled={isGenerating}
             >
-              <option value="gold" className="bg-background">
-                Gold
+              <option value={1} className="bg-background">
+                1 Premium Slot
               </option>
-              <option value="diamond" className="bg-background">
-                Diamond
+              <option value={2} className="bg-background">
+                2 Premium Slots
+              </option>
+              <option value={4} className="bg-background">
+                4 Premium Slots
               </option>
             </select>
           </div>
@@ -171,7 +169,7 @@ export default function GenerateRedeemCodesPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-white text-sm break-all">{code.code}</p>
                   <p className="text-xs text-foreground mt-1">
-                    Plan: {code.plan.charAt(0).toUpperCase() + code.plan.slice(1)}
+                    Slots: {code.premiumCount}
                     {code.expiresAt && ` | Expires: ${new Date(code.expiresAt).toLocaleDateString()}`}
                   </p>
                 </div>

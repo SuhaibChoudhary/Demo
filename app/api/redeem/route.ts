@@ -4,6 +4,7 @@ import { getDatabase } from "@/lib/mongodb"
 import { Logger } from "@/lib/logger"
 import { getClientIP, getUserAgent } from "@/lib/utils"
 import type { RedeemCode } from "@/lib/models/RedeemCode"
+import type { User } from "@/lib/models/User"
 
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request)
@@ -68,12 +69,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user's premium status
+    const currentUser = await db.collection<User>("users").findOne({ discordId: user.discordId })
+    if (!currentUser) {
+      await Logger.logError("redeem_user_not_found", "User not found for premium update", user.discordId, {
+        ip,
+        userAgent,
+        code,
+      })
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    const newPremiumCount = (currentUser.premium?.count || 0) + redeemCode.premiumCount
+    let newPremiumExpiry = currentUser.premium?.expiresAt || new Date()
+
+    // If the current premium is expired or doesn't exist, set new expiry from now
+    // Otherwise, extend the existing expiry
+    if (newPremiumExpiry < new Date()) {
+      newPremiumExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default 30 days from now
+    } else {
+      newPremiumExpiry = new Date(newPremiumExpiry.getTime() + 30 * 24 * 60 * 60 * 1000) // Extend by 30 days
+    }
+
     const userUpdateResult = await db.collection("users").updateOne(
       { discordId: user.discordId },
       {
         $set: {
-          premiumStatus: redeemCode.plan,
-          premiumExpiry: redeemCode.expiresAt, // Set expiry if code has one
+          "premium.count": newPremiumCount,
+          "premium.expiresAt": newPremiumExpiry,
           lastSeen: new Date(),
         },
       },
@@ -105,13 +127,14 @@ export async function POST(request: NextRequest) {
       userId: user.discordId,
       ip,
       userAgent,
-      metadata: { code, plan: redeemCode.plan },
+      metadata: { code, premiumCountGranted: redeemCode.premiumCount },
     })
 
     return NextResponse.json({
       success: true,
-      message: `Successfully redeemed code for ${redeemCode.plan} plan!`,
-      newPlan: redeemCode.plan,
+      message: `Successfully redeemed code for ${redeemCode.premiumCount} premium slots!`,
+      newPremiumCount: newPremiumCount,
+      newPremiumExpiry: newPremiumExpiry.toISOString(),
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Redeem code error"
