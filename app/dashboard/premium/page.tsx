@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Crown, Check, Zap, Star, Shield, XCircle, CheckCircle } from "lucide-react"
+import { Crown, Check, Zap, Star, Shield, XCircle, CheckCircle, Gift } from "lucide-react" // Added Gift icon
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input" // Added Input
 import type { PremiumPlan } from "@/lib/models/PremiumPlan" // Import PremiumPlan
 
 const plans: PremiumPlan[] = [
@@ -35,6 +36,8 @@ export default function PremiumPage() {
   const [userPremium, setUserPremium] = useState<{ count: number; expiresAt?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [redeemCode, setRedeemCode] = useState("") // State for redeem code input
+  const [isRedeeming, setIsRedeeming] = useState(false) // State for redeem button loading
 
   useEffect(() => {
     fetchUserPremiumStatus()
@@ -55,6 +58,35 @@ export default function PremiumPage() {
       setMessage({ type: "error", text: "An error occurred while loading premium status." })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRedeemCode = async () => {
+    setIsRedeeming(true)
+    setMessage(null) // Clear previous messages
+    try {
+      const response = await fetch("/api/redeem", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code: redeemCode }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setMessage({ type: "success", text: data.message })
+        setUserPremium({ count: data.newPremiumCount, expiresAt: data.newPremiumExpiry })
+        setRedeemCode("") // Clear input on success
+      } else {
+        const errorData = await response.json()
+        setMessage({ type: "error", text: errorData.error || "Failed to redeem code." })
+      }
+    } catch (error) {
+      console.error("Error redeeming code:", error)
+      setMessage({ type: "error", text: "An unexpected error occurred during redemption." })
+    } finally {
+      setIsRedeeming(false)
     }
   }
 
@@ -114,6 +146,44 @@ export default function PremiumPage() {
             <p className="text-sm">{message.text}</p>
           </div>
         )}
+      </div>
+
+      {/* Redeem Code Section */}
+      <div className="neumorphic rounded-2xl p-6 mb-8">
+        <div className="flex items-center mb-6">
+          <Gift className="w-6 h-6 text-primary-400 mr-3" />
+          <h2 className="text-xl font-semibold text-white">Redeem a Code</h2>
+        </div>
+        <p className="text-foreground text-sm mb-4">
+          Have a premium redeem code? Enter it below to activate your slots!
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Input
+            type="text"
+            placeholder="Enter your redeem code"
+            value={redeemCode}
+            onChange={(e) => setRedeemCode(e.target.value)}
+            className="flex-1 neumorphic-inset bg-transparent border-0 text-white placeholder-foreground"
+            disabled={isRedeeming}
+          />
+          <Button
+            onClick={handleRedeemCode}
+            disabled={isRedeeming || redeemCode.trim() === ""}
+            className="bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium"
+          >
+            {isRedeeming ? (
+              <div className="flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                Redeeming...
+              </div>
+            ) : (
+              <>
+                <Gift className="w-5 h-5 mr-2" />
+                Redeem
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Billing Toggle */}
