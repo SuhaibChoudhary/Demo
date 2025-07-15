@@ -10,7 +10,9 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-pink-900 via-background to-fuchsia-800">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-background to-purple-800">
+        {" "}
+        {/* Updated colors */}
         <div className="flex">
           <Sidebar />
           <main className="flex-1 lg:ml-0">

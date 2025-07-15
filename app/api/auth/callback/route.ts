@@ -35,10 +35,12 @@ export async function GET(request: NextRequest) {
     let discordUser: any
     let discordGuilds: any[]
     let userId: string
+    let discordAccessToken: string // Declare variable for access token
 
     try {
       const tokenData = await exchangeCodeForToken(code)
-      const discord = new DiscordAPI(tokenData.access_token)
+      discordAccessToken = tokenData.access_token // Store the access token
+      const discord = new DiscordAPI(discordAccessToken) // Use the access token
       discordUser = await discord.getCurrentUser()
       discordGuilds = await discord.getUserGuilds()
       userId = discordUser.id
@@ -139,6 +141,14 @@ export async function GET(request: NextRequest) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: config.cookies.maxAge,
+        path: "/",
+      })
+      // Set the Discord access token cookie
+      response.cookies.set(config.cookies.discordAccessToken, discordAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: config.cookies.maxAge, // Same expiry as auth token
         path: "/",
       })
 

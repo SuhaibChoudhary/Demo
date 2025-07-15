@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { verifyAuth } from "@/lib/auth"
 import { getDatabase } from "@/lib/mongodb"
-import { DiscordAPI, DiscordPermissions } from "@/lib/discord" // Import DiscordPermissions
+import { DiscordAPI, DiscordPermissions, hasDiscordPermission } from "@/lib/discord" // Import hasDiscordPermission
 import { Logger } from "@/lib/logger"
 import { getClientIP, getUserAgent } from "@/lib/utils"
 
@@ -35,37 +35,56 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Guild not found" }, { status: 404 })
     }
 
-    // Check if user has access to this guild and permissions
-    const discordApi = new DiscordAPI(request.cookies.get("discord-access-token")?.value || "") // Requires access token
-    let userGuildsFromDiscord = []
+    // Fetch user's guilds from Discord to get real-time permissions
+    const discordAccessToken = request.cookies.get("discord-access-token")?.value
+    if (!discordAccessToken) {
+      await Logger.log({
+        level: "warn",
+        event: "discord_access_token_missing",
+        userId: user.discordId,
+        ip,
+        userAgent,
+        metadata: { guildId: params.id, reason: "Cannot verify Discord permissions without token" },
+      })
+      // If token is missing, we cannot verify permissions, so deny access to config
+      return NextResponse.json({ error: "Missing Discord access token for permission check" }, { status: 403 })
+    }
+
+    const discordApi = new DiscordAPI(discordAccessToken)
+    let userGuildsFromDiscord: any[] = []
     try {
       userGuildsFromDiscord = await discordApi.getUserGuilds()
     } catch (discordError) {
-      console.warn("Could not fetch user guilds from Discord API:", discordError)
-      // Continue without Discord permissions if API fails, rely on DB user.guilds
+      const errorMessage = discordError instanceof Error ? discordError.message : "Unknown Discord API error"
+      await Logger.logError("discord_api_guilds_fetch_failed", errorMessage, user.discordId, {
+        ip,
+        userAgent,
+        guildId: params.id,
+      })
+      // If Discord API fails, we cannot reliably check permissions, so deny by default
+      return NextResponse.json({ error: "Failed to verify Discord permissions" }, { status: 500 })
     }
 
-    const userHasAccess = userGuildsFromDiscord.some((g) => g.id === params.id) || user.guilds.includes(params.id)
     const userGuildData = userGuildsFromDiscord.find((g) => g.id === params.id)
 
     let canManage = false
     if (userGuildData) {
       canManage =
         userGuildData.owner ||
-        DiscordPermissions.hasDiscordPermission(userGuildData.permissions, DiscordPermissions.ADMINISTRATOR) ||
-        DiscordPermissions.hasDiscordPermission(userGuildData.permissions, DiscordPermissions.MANAGE_GUILD)
+        hasDiscordPermission(userGuildData.permissions, DiscordPermissions.ADMINISTRATOR) ||
+        hasDiscordPermission(userGuildData.permissions, DiscordPermissions.MANAGE_GUILD)
     }
 
-    if (!userHasAccess) {
+    if (!userGuildData) {
       await Logger.log({
         level: "warn",
         event: "guild_access_denied",
         userId: user.discordId,
         ip,
         userAgent,
-        metadata: { guildId: params.id, reason: "Not in user's guilds" },
+        metadata: { guildId: params.id, reason: "User not found in Discord's guild list" },
       })
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+      return NextResponse.json({ error: "Access denied: You are not a member of this guild" }, { status: 403 })
     }
 
     await Logger.log({
@@ -74,7 +93,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       userId: user.discordId,
       ip,
       userAgent,
-      metadata: { guildId: params.id },
+      metadata: { guildId: params.id, canManage },
     })
 
     return NextResponse.json({ guild, canManage }) // Return canManage status
@@ -104,27 +123,36 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const body = await request.json()
-    const { config } = body
+    const { config: newConfig } = body // Renamed to newConfig to avoid conflict
 
     const db = await getDatabase()
 
-    // Check if user has access to this guild and permissions
-    const discordApi = new DiscordAPI(request.cookies.get("discord-access-token")?.value || "") // Requires access token
-    let userGuildsFromDiscord = []
-    try {
-      userGuildsFromDiscord = await discordApi.getUserGuilds()
-    } catch (discordError) {
-      console.warn("Could not fetch user guilds from Discord API for permission check:", discordError)
-      // If Discord API fails, we cannot reliably check permissions, so deny by default
+    // Fetch user's guilds from Discord to get real-time permissions
+    const discordAccessToken = request.cookies.get("discord-access-token")?.value
+    if (!discordAccessToken) {
       await Logger.log({
         level: "warn",
-        event: "guild_config_update_denied",
+        event: "discord_access_token_missing_for_update",
         userId: user.discordId,
         ip,
         userAgent,
-        metadata: { guildId: params.id, reason: "Discord API unavailable for permission check" },
+        metadata: { guildId: params.id, reason: "Cannot verify Discord permissions without token" },
       })
-      return NextResponse.json({ error: "Permission check failed: Discord API unavailable" }, { status: 403 })
+      return NextResponse.json({ error: "Missing Discord access token for permission check" }, { status: 403 })
+    }
+
+    const discordApi = new DiscordAPI(discordAccessToken)
+    let userGuildsFromDiscord: any[] = []
+    try {
+      userGuildsFromDiscord = await discordApi.getUserGuilds()
+    } catch (discordError) {
+      const errorMessage = discordError instanceof Error ? discordError.message : "Unknown Discord API error"
+      await Logger.logError("discord_api_guilds_fetch_failed_for_update", errorMessage, user.discordId, {
+        ip,
+        userAgent,
+        guildId: params.id,
+      })
+      return NextResponse.json({ error: "Failed to verify Discord permissions" }, { status: 500 })
     }
 
     const userGuildData = userGuildsFromDiscord.find((g) => g.id === params.id)
@@ -133,8 +161,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (userGuildData) {
       canManage =
         userGuildData.owner ||
-        DiscordPermissions.hasDiscordPermission(userGuildData.permissions, DiscordPermissions.ADMINISTRATOR) ||
-        DiscordPermissions.hasDiscordPermission(userGuildData.permissions, DiscordPermissions.MANAGE_GUILD)
+        hasDiscordPermission(userGuildData.permissions, DiscordPermissions.ADMINISTRATOR) ||
+        hasDiscordPermission(userGuildData.permissions, DiscordPermissions.MANAGE_GUILD)
     }
 
     if (!canManage) {
@@ -155,17 +183,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       {
         $set: {
           config: {
-            prefix: config.prefix || "!",
-            language: config.language || "en",
-            automod: config.automod || false,
-            logging: config.logging || false,
-            logChannel: config.logChannel,
-            welcomeMessages: config.welcomeMessages || false,
-            welcomeChannel: config.welcomeChannel,
-            musicEnabled: config.musicEnabled || false,
-            moderationLogs: config.moderationLogs || false,
-            moderationChannel: config.moderationChannel,
-            customCommands: config.customCommands || [],
+            prefix: newConfig.prefix || "!",
+            language: newConfig.language || "en",
+            automod: newConfig.automod || false,
+            logging: newConfig.logging || false,
+            logChannel: newConfig.logChannel,
+            welcomeMessages: newConfig.welcomeMessages || false,
+            welcomeChannel: newConfig.welcomeChannel,
+            musicEnabled: newConfig.musicEnabled || false,
+            moderationLogs: newConfig.moderationLogs || false,
+            moderationChannel: newConfig.moderationChannel,
+            customCommands: newConfig.customCommands || [],
           },
           updatedAt: new Date(),
         },
@@ -187,7 +215,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       guildId: params.id,
       userId: user.discordId,
       action: "config_update",
-      changes: config,
+      changes: newConfig,
       timestamp: new Date(),
     })
 
@@ -197,7 +225,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       userId: user.discordId,
       ip,
       userAgent,
-      metadata: { guildId: params.id, updatedConfig: config },
+      metadata: { guildId: params.id, updatedConfig: newConfig },
     })
 
     return NextResponse.json({

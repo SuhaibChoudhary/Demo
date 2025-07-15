@@ -11,6 +11,8 @@ export const config = {
   },
   cookies: {
     authToken: "auth-token",
+    discordAccessToken: "discord-access-token", // New: Cookie for Discord access token
     maxAge: 60 * 60 * 24 * 7, // 7 days
   },
+  adminDiscordId: process.env.ADMIN_DISCORD_ID, // New: Admin Discord ID for restricted access
 }

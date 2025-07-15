@@ -75,25 +75,29 @@ export default function LoginPage() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-900 via-background to-fuchsia-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-background to-purple-800 flex items-center justify-center p-4">
+        {" "}
+        {/* Updated colors */}
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-rose-200">Checking authentication...</p>
+          <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-foreground">Checking authentication...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-900 via-background to-fuchsia-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-background to-purple-800 flex items-center justify-center p-4">
+      {" "}
+      {/* Updated colors */}
       <div className="w-full max-w-md">
         {/* Logo Section */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="inline-flex items-center justify-center w-20 h-20 neumorphic rounded-2xl mb-4 animate-bounce-subtle">
-            <Bot className="w-10 h-10 text-pink-400" />
+            <Bot className="w-10 h-10 text-primary-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">BotDash</h1>
-          <p className="text-rose-200">Manage your Discord bot with elegance</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Noisy</h1> {/* Updated bot name */}
+          <p className="text-foreground">Manage your Discord bot with elegance</p>
         </div>
 
         {/* Error Message */}
@@ -120,13 +124,13 @@ export default function LoginPage() {
         <div className="neumorphic rounded-2xl p-8 animate-slide-up">
           <div className="text-center mb-6">
             <h2 className="text-xl font-semibold text-white mb-2">Welcome Back</h2>
-            <p className="text-rose-200 text-sm">Sign in with Discord to continue</p>
+            <p className="text-foreground text-sm">Sign in with Discord to continue</p>
           </div>
 
           <Button
             onClick={handleDiscordLogin}
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-pink-600 to-fuchsia-600 hover:from-pink-700 hover:to-fuchsia-700 text-white py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 disabled:scale-100 animate-glow"
+            className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium transition-all duration-200 hover:scale-105 disabled:scale-100 animate-glow"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
@@ -142,7 +146,7 @@ export default function LoginPage() {
           </Button>
 
           <div className="mt-6 text-center">
-            <p className="text-xs text-rose-300">By continuing, you agree to our Terms of Service</p>
+            <p className="text-xs text-foreground">By continuing, you agree to our Terms of Service</p>
           </div>
         </div>
 
@@ -150,21 +154,21 @@ export default function LoginPage() {
         <div className="mt-8 grid grid-cols-3 gap-4 animate-fade-in">
           <div className="text-center">
             <div className="w-12 h-12 neumorphic rounded-xl flex items-center justify-center mx-auto mb-2">
-              <Shield className="w-6 h-6 text-pink-400" />
+              <Shield className="w-6 h-6 text-primary-400" />
             </div>
-            <p className="text-xs text-rose-200">Secure</p>
+            <p className="text-xs text-foreground">Secure</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 neumorphic rounded-xl flex items-center justify-center mx-auto mb-2">
-              <Zap className="w-6 h-6 text-pink-400" />
+              <Zap className="w-6 h-6 text-primary-400" />
             </div>
-            <p className="text-xs text-rose-200">Fast</p>
+            <p className="text-xs text-foreground">Fast</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 neumorphic rounded-xl flex items-center justify-center mx-auto mb-2">
-              <Users className="w-6 h-6 text-pink-400" />
+              <Users className="w-6 h-6 text-primary-400" />
             </div>
-            <p className="text-xs text-rose-200">Reliable</p>
+            <p className="text-xs text-foreground">Reliable</p>
           </div>
         </div>
       </div>
