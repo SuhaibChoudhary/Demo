@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const stats = {
       totalGuilds: guilds.length,
       totalMembers: guilds.reduce((sum, guild) => sum + (guild.memberCount || 0), 0),
-      premiumGuilds: guilds.filter((g) => g.premiumStatus).length,
+      premiumGuilds: guilds.filter((g) => g.premium.active).length,
     }
 
     // Log successful user data access

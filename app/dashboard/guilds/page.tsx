@@ -11,7 +11,6 @@ interface Guild {
   name: string
   icon?: string
   memberCount: number
-  botAdded: boolean
   premium: {
     active: boolean
     expiresAt?: string
@@ -132,13 +131,7 @@ export default function GuildsPage() {
                   {guild.premium.active && new Date(guild.premium.expiresAt || 0) > new Date() && (
                     <Crown className="w-4 h-4 text-yellow-400" />
                   )}
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      guild.botAdded ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                    }`}
-                  >
-                    {guild.botAdded ? "Bot Active" : "Bot Inactive"}
-                  </span>
+                  <span className={`text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400`}>Bot Active</span>
                 </div>
               </div>
             </div>

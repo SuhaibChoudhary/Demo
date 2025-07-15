@@ -17,7 +17,8 @@ const notifications = [
     id: 2,
     type: "success",
     title: "Premium Activated",
-    message: "Your Gold plan is now active. Enjoy premium features including advanced moderation and priority support!",
+    message:
+      "Your premium slots are now active. Enjoy premium features including advanced moderation and priority support!",
     time: "1 day ago",
     read: false,
   },
