@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DiscordLogoIcon } from "@radix-ui/react-icons"
 import Link from "next/link"
+import { config } from "@/lib/config"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -18,6 +19,8 @@ export default function LoginPage() {
       console.error("Login Error:", error)
       // You might want to display this error to the user
     }
+    console.log("Client ID from config:", config.discord.clientId)
+    console.log("Redirect URI from config:", config.discord.redirectUri)
   }, [error])
 
   const handleLogin = () => {
