@@ -16,7 +16,7 @@ export interface DiscordGuild {
   name: string
   icon?: string // This is the icon hash
   owner: boolean
-  permissions: string
+  permissions: string // Bitfield string
   features: string[]
 }
 
@@ -26,6 +26,13 @@ export interface DiscordTokenResponse {
   expires_in: number
   refresh_token: string
   scope: string
+}
+
+// Discord Permission Flags (common ones for guild management)
+export enum DiscordPermissions {
+  ADMINISTRATOR = 1 << 3, // 8
+  MANAGE_GUILD = 1 << 5, // 32
+  // Add other permissions as needed
 }
 
 export class DiscordAPI {
@@ -121,4 +128,10 @@ export function getDiscordGuildIconUrl(guildId: string, iconHash?: string | null
     return `${DISCORD_CDN_BASE}/icons/${guildId}/${iconHash}.${format}?size=128`
   }
   return `/placeholder.svg?height=48&width=48` // Fallback to local placeholder
+}
+
+// Helper to check if a user has a specific Discord permission
+export function hasDiscordPermission(userPermissions: string, requiredPermission: DiscordPermissions): boolean {
+  const permissionsInt = Number.parseInt(userPermissions)
+  return (permissionsInt & requiredPermission) === requiredPermission
 }

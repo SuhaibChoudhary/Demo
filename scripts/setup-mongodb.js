@@ -23,7 +23,8 @@ async function setupDatabase() {
       "notifications",
       "audit_logs",
       "custom_commands",
-      "logs", // New collection for application logs
+      "logs",
+      "redeem_codes", // New collection for redeem codes
     ]
 
     for (const collectionName of collections) {
@@ -57,6 +58,11 @@ async function setupDatabase() {
     await db.collection("logs").createIndex({ userId: 1, timestamp: -1 })
     await db.collection("logs").createIndex({ event: 1, timestamp: -1 })
     await db.collection("logs").createIndex({ level: 1, timestamp: -1 })
+
+    // New indexes for redeem_codes collection
+    await db.collection("redeem_codes").createIndex({ code: 1 }, { unique: true })
+    await db.collection("redeem_codes").createIndex({ usedBy: 1 }, { sparse: true })
+    await db.collection("redeem_codes").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }) // TTL index for automatic expiry
 
     console.log("Database setup completed successfully!")
   } catch (error) {

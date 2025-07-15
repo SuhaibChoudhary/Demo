@@ -67,9 +67,9 @@ export function Sidebar() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center">
               <div className="w-10 h-10 neumorphic rounded-xl flex items-center justify-center mr-3">
-                <Bot className="w-6 h-6 text-pink-400" />
+                <Bot className="w-6 h-6 text-primary-400" /> {/* Changed to primary-400 */}
               </div>
-              <span className="text-xl font-bold text-white">BotDash</span>
+              <span className="text-xl font-bold text-white">Noisy</span> {/* Updated bot name */}
             </div>
             <Button onClick={() => setIsOpen(false)} className="lg:hidden p-1" variant="ghost">
               <X className="w-5 h-5" />
@@ -89,8 +89,8 @@ export function Sidebar() {
                     flex items-center px-4 py-3 rounded-xl transition-all duration-200
                     ${
                       isActive
-                        ? "bg-pink-600/20 text-pink-300 neumorphic-inset"
-                        : "text-rose-200 hover:text-white hover:bg-pink-500/10"
+                        ? "bg-primary-600/20 text-primary-300 neumorphic-inset" // Changed to primary colors
+                        : "text-foreground hover:text-white hover:bg-primary-500/10" // Changed to primary colors
                     }
                   `}
                 >
