@@ -65,22 +65,3 @@ export function generateAuthToken(user: Pick<AuthUser, "discordId" | "username">
     { expiresIn: config.jwt.expiresIn },
   )
 }
-
-export function getClientIP(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for")
-  const realIP = request.headers.get("x-real-ip")
-
-  if (forwarded) {
-    return forwarded.split(",")[0].trim()
-  }
-
-  if (realIP) {
-    return realIP
-  }
-
-  return request.ip || "unknown"
-}
-
-export function getUserAgent(request: NextRequest): string {
-  return request.headers.get("user-agent") || "unknown"
-}

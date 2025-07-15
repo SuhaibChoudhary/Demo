@@ -12,7 +12,7 @@ interface UserProfile {
   plan: string
   serversManaged: number
   totalMembers: number
-  avatar?: string
+  avatar?: string // This will now be the full URL
 }
 
 export default function ProfilePage() {
@@ -48,7 +48,7 @@ export default function ProfilePage() {
           plan: data.user.premiumStatus,
           serversManaged: data.stats.totalGuilds,
           totalMembers: data.stats.totalMembers,
-          avatar: data.user.avatar || "/placeholder.svg?height=96&width=96",
+          avatar: data.user.avatar || "/placeholder.svg?height=96&width=96", // Use Discord avatar or placeholder
         }
         setProfile(fetchedProfile)
         setOriginalProfile(fetchedProfile) // Store original for reset

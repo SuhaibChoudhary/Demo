@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { exchangeCodeForToken, DiscordAPI } from "@/lib/discord"
+import { exchangeCodeForToken, DiscordAPI, getDiscordAvatarUrl, getDiscordGuildIconUrl } from "@/lib/discord"
 import { getDatabase, testConnection } from "@/lib/mongodb"
 import { generateAuthToken, getClientIP, getUserAgent } from "@/lib/auth"
 import { Logger } from "@/lib/logger"
@@ -60,6 +60,10 @@ export async function GET(request: NextRequest) {
 
     try {
       const db = await getDatabase()
+
+      // Construct full avatar URL
+      const userAvatarUrl = getDiscordAvatarUrl(discordUser.id, discordUser.avatar)
+
       // Update or insert user
       await db.collection("users").updateOne(
         { discordId: discordUser.id },
@@ -68,7 +72,7 @@ export async function GET(request: NextRequest) {
             discordId: discordUser.id,
             username: discordUser.username,
             discriminator: discordUser.discriminator,
-            avatar: discordUser.avatar,
+            avatar: userAvatarUrl, // Store full URL
             email: discordUser.email,
             guilds: discordGuilds.map((g) => g.id),
             lastLogin: new Date(),
@@ -86,6 +90,40 @@ export async function GET(request: NextRequest) {
       if (!user) {
         console.error("User fetch after update failed")
         throw new Error("Failed to create/update user")
+      }
+
+      // Upsert user's guilds into the 'guilds' collection
+      for (const discordGuild of discordGuilds) {
+        const guildIconUrl = getDiscordGuildIconUrl(discordGuild.id, discordGuild.icon)
+        await db.collection("guilds").updateOne(
+          { guildId: discordGuild.id },
+          {
+            $set: {
+              guildId: discordGuild.id,
+              name: discordGuild.name,
+              icon: guildIconUrl, // Store full URL
+              ownerId: discordGuild.owner ? user.discordId : null, // Only set if user is owner
+              memberCount: 0, // Will be updated by bot or later API calls
+              botAdded: false, // Default to false, bot will update this
+              premiumStatus: false, // Default to false
+              updatedAt: new Date(),
+            },
+            $setOnInsert: {
+              createdAt: new Date(),
+              config: {
+                prefix: "!",
+                language: "en",
+                automod: false,
+                logging: false,
+                welcomeMessages: false,
+                musicEnabled: false,
+                moderationLogs: false,
+                customCommands: [],
+              },
+            },
+          },
+          { upsert: true },
+        )
       }
 
       const authToken = generateAuthToken({

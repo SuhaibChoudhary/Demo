@@ -1,19 +1,20 @@
 import { config } from "./config"
 
 const DISCORD_API_BASE = "https://discord.com/api/v10"
+const DISCORD_CDN_BASE = "https://cdn.discordapp.com"
 
 export interface DiscordUser {
   id: string
   username: string
   discriminator: string
-  avatar?: string
+  avatar?: string // This is the avatar hash
   email?: string
 }
 
 export interface DiscordGuild {
   id: string
   name: string
-  icon?: string
+  icon?: string // This is the icon hash
   owner: boolean
   permissions: string
   features: string[]
@@ -99,4 +100,25 @@ export async function exchangeCodeForToken(code: string): Promise<DiscordTokenRe
 
 function generateState(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+}
+
+// Helper to get full Discord avatar URL
+export function getDiscordAvatarUrl(userId: string, avatarHash?: string | null): string {
+  if (avatarHash) {
+    // Check if it's an animated GIF (starts with 'a_')
+    const format = avatarHash.startsWith("a_") ? "gif" : "png"
+    return `${DISCORD_CDN_BASE}/avatars/${userId}/${avatarHash}.${format}?size=128`
+  }
+  // Default Discord avatar if no custom avatar is set
+  // This is a generic default, Discord also has specific default avatars based on discriminator
+  return `${DISCORD_CDN_BASE}/embed/avatars/0.png` // A common default placeholder
+}
+
+// Helper to get full Discord guild icon URL
+export function getDiscordGuildIconUrl(guildId: string, iconHash?: string | null): string {
+  if (iconHash) {
+    const format = iconHash.startsWith("a_") ? "gif" : "png"
+    return `${DISCORD_CDN_BASE}/icons/${guildId}/${iconHash}.${format}?size=128`
+  }
+  return `/placeholder.svg?height=48&width=48` // Fallback to local placeholder
 }

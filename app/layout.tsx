@@ -6,7 +6,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Discord Bot Dashboard",
+  title: "Noisy - Discord Bot Dashboard", // Updated project name
   description: "Modern Discord bot management dashboard",
     generator: 'v0.dev'
 }

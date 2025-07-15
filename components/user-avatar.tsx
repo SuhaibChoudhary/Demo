@@ -5,7 +5,7 @@ import { User } from "lucide-react"
 
 interface UserData {
   username: string
-  avatar?: string
+  avatar?: string // This will now be the full URL
   premiumStatus: string
 }
 
@@ -23,13 +23,12 @@ export function UserAvatar() {
         const data = await response.json()
         setUser(data.user)
       } else {
-        // Handle cases where user data fetch fails (e.g., not authenticated)
         console.error("Failed to fetch user data for avatar:", response.statusText)
-        setUser(null) // Ensure user is null if fetch fails
+        setUser(null)
       }
     } catch (error) {
       console.error("Error fetching user for avatar:", error)
-      setUser(null) // Ensure user is null on network/other errors
+      setUser(null)
     }
   }
 
