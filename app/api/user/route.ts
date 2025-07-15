@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         discriminator: userData.discriminator,
         avatar: userData.avatar,
         email: userData.email,
-        premiumStatus: userData.premiumStatus,
+        premium: userData.premium, // Changed from premiumStatus
         createdAt: userData.createdAt,
         lastLogin: userData.lastLogin,
         lastSeen: userData.lastSeen,

@@ -7,7 +7,10 @@ export interface AuthUser {
   discordId: string
   username: string
   avatar?: string
-  premiumStatus: string
+  premium: {
+    count: number
+    expiresAt?: Date
+  }
 }
 
 export interface AuthTokenPayload {
@@ -43,7 +46,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
       discordId: user.discordId,
       username: user.username,
       avatar: user.avatar,
-      premiumStatus: user.premiumStatus,
+      premium: user.premium, // Changed from premiumStatus
     }
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {

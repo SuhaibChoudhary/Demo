@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     // Fetch statistics
     const totalUsers = await db.collection("users").countDocuments()
     const totalGuilds = await db.collection("guilds").countDocuments()
-    const totalPremiumUsers = await db.collection("users").countDocuments({ premiumStatus: { $ne: "free" } })
+    const totalPremiumUsers = await db.collection("users").countDocuments({
+      "premium.count": { $gt: 0 },
+      "premium.expiresAt": { $gt: new Date() },
+    })
     const totalRedeemCodes = await db.collection("redeem_codes").countDocuments()
     const usedRedeemCodes = await db.collection("redeem_codes").countDocuments({ usedBy: { $exists: true } })
 
