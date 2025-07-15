@@ -1,9 +1,9 @@
 export const config = {
   baseUrl: process.env.NEXTAUTH_URL || "http://localhost:3000",
   discord: {
-    clientId: process.env.DISCORD_CLIENT_ID!,
+    clientId: process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID!, // Changed to NEXT_PUBLIC_
     clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-    redirectUri: process.env.DISCORD_REDIRECT_URI!,
+    redirectUri: process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI!, // Changed to NEXT_PUBLIC_
   },
   jwt: {
     secret: process.env.JWT_SECRET!,
