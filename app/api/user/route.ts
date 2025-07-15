@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const user = await verifyAuth(request)
+    console.log("API/User: verifyAuth result:", user ? "Authenticated" : "Not Authenticated")
 
     if (!user) {
       await Logger.log({
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
     const stats = {
       totalGuilds: guilds.length,
       totalMembers: guilds.reduce((sum, guild) => sum + (guild.memberCount || 0), 0),
-      premiumGuilds: guilds.filter((g) => g.premium.active).length,
+      premiumGuilds: guilds.filter(
+        (g) => g.premium.active && g.premium.expiresAt && new Date(g.premium.expiresAt) > new Date(),
+      ).length,
     }
 
     // Log successful user data access
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
         discriminator: userData.discriminator,
         avatar: userData.avatar,
         email: userData.email,
-        premium: userData.premium, // Changed from premiumStatus
+        premium: userData.premium,
         createdAt: userData.createdAt,
         lastLogin: userData.lastLogin,
         lastSeen: userData.lastSeen,

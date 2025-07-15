@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     // Test database connection
     const dbConnected = await testConnection()
     if (!dbConnected) {
-      console.error("Database connection failed during auth callback")
+      console.error("AuthCallback: Database connection failed during auth callback")
       return NextResponse.redirect(`${config.baseUrl}/?error=database_failed`)
     }
 
@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code")
     const error = searchParams.get("error")
     const state = searchParams.get("state")
+
+    console.log("AuthCallback: Received callback. Code:", !!code, "Error:", error, "State:", state)
 
     if (error) {
       await Logger.logError("discord_oauth_error", error, undefined, { ip, userAgent })
@@ -38,12 +40,15 @@ export async function GET(request: NextRequest) {
     let discordAccessToken: string
 
     try {
+      console.log("AuthCallback: Exchanging code for token...")
       const tokenData = await exchangeCodeForToken(code)
       discordAccessToken = tokenData.access_token
       const discord = new DiscordAPI(discordAccessToken)
       discordUser = await discord.getCurrentUser()
       discordGuilds = await discord.getUserGuilds()
       userId = discordUser.id
+
+      console.log("AuthCallback: Discord API calls successful for user:", userId)
 
       await Logger.log({
         level: "info",
@@ -55,7 +60,7 @@ export async function GET(request: NextRequest) {
       })
     } catch (discordError) {
       const errorMessage = discordError instanceof Error ? discordError.message : "Unknown Discord API error"
-      console.error("Discord API error during auth callback:", discordError)
+      console.error("AuthCallback: Discord API error during auth callback:", discordError)
       await Logger.logError("discord_api_error", errorMessage, undefined, { ip, userAgent })
       return NextResponse.redirect(`${config.baseUrl}/?error=discord_api_failed`)
     }
@@ -87,10 +92,11 @@ export async function GET(request: NextRequest) {
         },
         { upsert: true },
       )
+      console.log("AuthCallback: User upserted in DB:", discordUser.id)
 
       const user = await db.collection("users").findOne({ discordId: discordUser.id })
       if (!user) {
-        console.error("User fetch after update failed")
+        console.error("AuthCallback: User fetch after update failed")
         throw new Error("Failed to create/update user")
       }
 
@@ -126,11 +132,13 @@ export async function GET(request: NextRequest) {
           { upsert: true },
         )
       }
+      console.log("AuthCallback: Guilds upserted for user:", discordUser.id)
 
       const authToken = generateAuthToken({
         discordId: discordUser.id,
         username: discordUser.username,
       })
+      console.log("AuthCallback: Auth token generated. Length:", authToken.length)
 
       await Logger.logLogin(discordUser.id, true, ip, userAgent)
 
@@ -142,6 +150,8 @@ export async function GET(request: NextRequest) {
         maxAge: config.cookies.maxAge,
         path: "/",
       })
+      console.log("AuthCallback: Auth token cookie set.")
+
       response.cookies.set(config.cookies.discordAccessToken, discordAccessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -149,18 +159,19 @@ export async function GET(request: NextRequest) {
         maxAge: config.cookies.maxAge,
         path: "/",
       })
+      console.log("AuthCallback: Discord access token cookie set.")
 
       return response
     } catch (dbError) {
       const errorMessage = dbError instanceof Error ? dbError.message : "Database error"
-      console.error("Database error during auth (update/find):", dbError)
+      console.error("AuthCallback: Database error during auth (update/find):", dbError)
       await Logger.logError("database_error", errorMessage, userId, { ip, userAgent })
       await Logger.logLogin(userId, false, ip, userAgent, errorMessage)
       return NextResponse.redirect(`${config.baseUrl}/?error=database_failed`)
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown callback error"
-    console.error("Auth callback error (top-level catch):", error)
+    console.error("AuthCallback: Auth callback error (top-level catch):", error)
     await Logger.logError("auth_callback_error", errorMessage, undefined, { ip, userAgent })
     return NextResponse.redirect(`${config.baseUrl}/?error=auth_failed`)
   }
