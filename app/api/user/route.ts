@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       totalGuilds: guilds.length,
       totalMembers: guilds.reduce((sum, guild) => sum + (guild.memberCount || 0), 0),
       premiumGuilds: guilds.filter(
-        (g) => g.premium.active && g.premium.expiresAt && new Date(g.premium.expiresAt) > new Date(),
+        (g) => g.premium?.active && g.premium?.expiresAt && new Date(g.premium?.expiresAt) > new Date(),
       ).length,
     }
     console.log("API/User: Stats calculated:", stats)

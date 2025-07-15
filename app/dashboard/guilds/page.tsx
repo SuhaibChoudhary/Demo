@@ -104,7 +104,11 @@ export default function GuildsPage() {
             <div>
               <p className="text-foreground text-sm">Premium Servers</p>
               <p className="text-2xl font-bold text-white">
-                {guilds.filter((g) => g.premium.active && new Date(g.premium.expiresAt || 0) > new Date()).length}
+                {
+                  guilds.filter(
+                    (g) => g.premium?.active && g.premium?.expiresAt && new Date(g.premium.expiresAt) > new Date(),
+                  ).length
+                }
               </p>
             </div>
             <Crown className="w-8 h-8 text-yellow-400" />
@@ -128,9 +132,9 @@ export default function GuildsPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-white truncate">{guild.name}</h3>
                 <div className="flex items-center space-x-2 mt-1">
-                  {guild.premium.active && new Date(guild.premium.expiresAt || 0) > new Date() && (
-                    <Crown className="w-4 h-4 text-yellow-400" />
-                  )}
+                  {guild.premium?.active &&
+                    guild.premium?.expiresAt &&
+                    new Date(guild.premium.expiresAt) > new Date() && <Crown className="w-4 h-4 text-yellow-400" />}
                   <span className={`text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400`}>Bot Active</span>
                 </div>
               </div>
