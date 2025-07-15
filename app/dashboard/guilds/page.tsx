@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Server, Users, Settings, Crown, ChevronRight, Bot } from "lucide-react" // Added Bot, CheckCircle, XCircle
+import { getDiscordGuildIconUrl } from "@/lib/discord"
+import { Crown, Settings, Bot, XCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -15,40 +16,42 @@ interface Guild {
     active: boolean
     expiresAt?: string
   }
-  botAdded: boolean // New
-  config: {
-    prefix: string
-    language: string
-    automod: boolean
-  }
+  botAdded: boolean // Added botAdded status
+  canManage: boolean
 }
 
 export default function GuildsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
   const [guilds, setGuilds] = useState<Guild[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
     fetchGuilds()
   }, [])
 
   const fetchGuilds = async () => {
+    setLoading(true)
+    setError(null)
     try {
       const response = await fetch("/api/guilds")
       if (response.ok) {
         const data = await response.json()
         setGuilds(data.guilds)
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to fetch guilds.")
       }
-    } catch (error) {
-      console.error("Failed to fetch guilds:", error)
+    } catch (err) {
+      console.error("Error fetching guilds:", err)
+      setError("An unexpected error occurred while fetching guilds.")
     } finally {
       setLoading(false)
     }
   }
 
-  // Filter guilds by search term AND botAdded status
   const filteredGuilds = guilds.filter(
-    (guild) => guild.name.toLowerCase().includes(searchTerm.toLowerCase()) && guild.botAdded,
+    (guild) => guild.name.toLowerCase().includes(searchTerm.toLowerCase()) || guild.guildId.includes(searchTerm),
   )
 
   if (loading) {
@@ -62,119 +65,102 @@ export default function GuildsPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        <div className="text-center py-12">
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
+          <p className="text-red-300">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Your Servers</h1>
-        <p className="text-foreground">Manage your Discord servers and bot settings</p>
+        <p className="text-foreground">Manage bot settings for your Discord servers</p>
       </div>
 
       {/* Search */}
       <div className="mb-6">
         <Input
           type="text"
-          placeholder="Search servers..."
+          placeholder="Search servers by name or ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-md neumorphic-inset bg-transparent border-0 text-white placeholder-foreground"
         />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="neumorphic rounded-2xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-foreground text-sm">Total Servers</p>
-              <p className="text-2xl font-bold text-white">{guilds.length}</p>
-            </div>
-            <Server className="w-8 h-8 text-primary-400" />
-          </div>
-        </div>
-        <div className="neumorphic rounded-2xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-foreground text-sm">Total Members</p>
-              <p className="text-2xl font-bold text-white">
-                {guilds.reduce((acc, guild) => acc + guild.memberCount, 0).toLocaleString()}
-              </p>
-            </div>
-            <Users className="w-8 h-8 text-primary-400" />
-          </div>
-        </div>
-        <div className="neumorphic rounded-2xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-foreground text-sm">Premium Servers</p>
-              <p className="text-2xl font-bold text-white">
-                {
-                  guilds.filter(
-                    (g) => g.premium?.active && g.premium?.expiresAt && new Date(g.premium.expiresAt) > new Date(),
-                  ).length
-                }
-              </p>
-            </div>
-            <Crown className="w-8 h-8 text-yellow-400" />
-          </div>
-        </div>
-      </div>
-
-      {/* Guilds Grid */}
+      {/* Guilds List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredGuilds.map((guild) => (
-          <div
-            key={guild.guildId}
-            className="neumorphic rounded-2xl p-6 hover:scale-105 transition-all duration-200 animate-slide-up"
-          >
-            <div className="flex items-center mb-4">
-              <img
-                src={guild.icon || "/placeholder.svg?height=48&width=48"}
-                alt={guild.name}
-                className="w-12 h-12 rounded-xl mr-4"
-              />
-              <div className="flex-1">
-                <h3 className="font-semibold text-white truncate">{guild.name}</h3>
-                <div className="flex items-center space-x-2 mt-1">
-                  {guild.premium?.active &&
-                    guild.premium?.expiresAt &&
-                    new Date(guild.premium.expiresAt) > new Date() && <Crown className="w-4 h-4 text-yellow-400" />}
-                  {guild.botAdded ? (
-                    <span className={`text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center`}>
-                      <Bot className="w-3 h-3 mr-1" /> Active
-                    </span>
-                  ) : (
-                    <span className={`text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-400 flex items-center`}>
-                      <Bot className="w-3 h-3 mr-1" /> Inactive
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between text-sm text-foreground mb-4">
-              <span>{guild.memberCount.toLocaleString()} members</span>
-              <span>Prefix: {guild.config.prefix}</span>
-            </div>
-
-            <Link href={`/dashboard/guild/${guild.guildId}`}>
-              <Button className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white rounded-xl">
-                <Settings className="w-4 h-4 mr-2" />
-                Configure
-                <ChevronRight className="w-4 h-4 ml-auto" />
-              </Button>
+        {filteredGuilds.length === 0 ? (
+          <div className="lg:col-span-3 text-center py-12 neumorphic rounded-2xl">
+            <Bot className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Servers Found</h3>
+            <p className="text-foreground max-w-md mx-auto">
+              It looks like the bot is not in any of your managed servers. Please add the bot to your server to get
+              started.
+            </p>
+            {/* TODO: Add bot invite link */}
+            <Link href="#" className="mt-4 inline-block bg-primary-600 text-white py-2 px-4 rounded-xl font-medium">
+              Add Bot to Server
             </Link>
           </div>
-        ))}
-      </div>
+        ) : (
+          filteredGuilds.map((guild) => (
+            <div key={guild.guildId} className="neumorphic rounded-2xl p-6 flex flex-col items-center text-center">
+              <img
+                src={getDiscordGuildIconUrl(guild.guildId, guild.icon) || "/placeholder.svg"}
+                alt={guild.name}
+                className="w-20 h-20 rounded-full mb-4 shadow-lg"
+              />
+              <h2 className="text-xl font-bold text-white mb-2">{guild.name}</h2>
+              <p className="text-sm text-foreground mb-4">ID: {guild.guildId}</p>
 
-      {filteredGuilds.length === 0 && (
-        <div className="text-center py-12">
-          <Server className="w-16 h-16 text-primary-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-foreground mb-2">No active servers found</h3>
-          <p className="text-foreground">The bot might not be in these servers, or they don't match your search.</p>
-        </div>
-      )}
+              <div className="flex items-center space-x-2 mb-4">
+                {guild.premium.active ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
+                    <Crown className="w-3 h-3 mr-1" /> Premium
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
+                    Free Plan
+                  </span>
+                )}
+                {guild.botAdded ? (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
+                    <CheckCircle className="w-3 h-3 mr-1" /> Bot Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
+                    <XCircle className="w-3 h-3 mr-1" /> Bot Inactive
+                  </span>
+                )}
+              </div>
+
+              <Link href={`/dashboard/guild/${guild.guildId}`} className="w-full">
+                <Button
+                  className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium"
+                  disabled={!guild.canManage}
+                >
+                  <Settings className="w-5 h-5 mr-2" />
+                  Manage Settings
+                </Button>
+              </Link>
+              {!guild.canManage && (
+                <p className="text-xs text-red-300 mt-2">
+                  You need "Manage Server" or "Administrator" permissions to manage this server.
+                </p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }

@@ -1,179 +1,156 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { exchangeCodeForToken, DiscordAPI, getDiscordAvatarUrl, getDiscordGuildIconUrl } from "@/lib/discord"
-import { getDatabase, testConnection } from "@/lib/mongodb"
-import { generateAuthToken, getClientIP, getUserAgent } from "@/lib/auth"
+import { cookies } from "next/headers"
+import { exchangeCodeForToken, DiscordAPI, DiscordPermissions } from "@/lib/discord"
+import { signJwt } from "@/lib/auth"
+import { getDatabase } from "@/lib/mongodb"
 import { Logger } from "@/lib/logger"
-import { config } from "@/lib/config"
+import { getClientIP, getUserAgent } from "@/lib/utils"
+import type { User } from "@/lib/models/User"
+import type { Guild } from "@/lib/models/Guild"
 
 export async function GET(request: NextRequest) {
   const ip = getClientIP(request)
   const userAgent = getUserAgent(request)
 
   try {
-    // Test database connection
-    const dbConnected = await testConnection()
-    if (!dbConnected) {
-      console.error("AuthCallback: Database connection failed during auth callback")
-      return NextResponse.redirect(`${config.baseUrl}/?error=database_failed`)
-    }
-
     const { searchParams } = new URL(request.url)
     const code = searchParams.get("code")
-    const error = searchParams.get("error")
-    const state = searchParams.get("state")
-
-    console.log("AuthCallback: Received callback. Code:", !!code, "Error:", error, "State:", state)
-
-    if (error) {
-      await Logger.logError("discord_oauth_error", error, undefined, { ip, userAgent })
-      return NextResponse.redirect(`${config.baseUrl}/?error=discord_${error}`)
-    }
+    const state = searchParams.get("state") // For CSRF protection
 
     if (!code) {
-      await Logger.logError("oauth_callback_no_code", "Authorization code missing", undefined, { ip, userAgent })
-      return NextResponse.redirect(`${config.baseUrl}/?error=no_code`)
-    }
-
-    let discordUser: any
-    let discordGuilds: any[]
-    let userId: string
-    let discordAccessToken: string
-
-    try {
-      console.log("AuthCallback: Exchanging code for token...")
-      const tokenData = await exchangeCodeForToken(code)
-      discordAccessToken = tokenData.access_token
-      const discord = new DiscordAPI(discordAccessToken)
-      discordUser = await discord.getCurrentUser()
-      discordGuilds = await discord.getUserGuilds()
-      userId = discordUser.id
-
-      console.log("AuthCallback: Discord API calls successful for user:", userId)
-
       await Logger.log({
-        level: "info",
-        event: "discord_api_success",
-        userId,
+        level: "warn",
+        event: "oauth_callback_no_code",
         ip,
         userAgent,
-        metadata: { guildCount: discordGuilds.length },
       })
-    } catch (discordError) {
-      const errorMessage = discordError instanceof Error ? discordError.message : "Unknown Discord API error"
-      console.error("AuthCallback: Discord API error during auth callback:", discordError)
-      await Logger.logError("discord_api_error", errorMessage, undefined, { ip, userAgent })
-      return NextResponse.redirect(`${config.baseUrl}/?error=discord_api_failed`)
+      return NextResponse.redirect(new URL("/login?error=no_code", request.url))
     }
 
-    try {
-      const db = await getDatabase()
+    // TODO: Implement state verification for CSRF protection
+    // if (!state || state !== storedState) {
+    //   return NextResponse.redirect(new URL("/login?error=csrf_mismatch", request.url));
+    // }
 
-      // Construct full avatar URL
-      const userAvatarUrl = getDiscordAvatarUrl(discordUser.id, discordUser.avatar)
+    const tokenResponse = await exchangeCodeForToken(code)
+    const discordApi = new DiscordAPI(tokenResponse.access_token)
+    const discordUser = await discordApi.getCurrentUser()
+    const discordGuilds = await discordApi.getUserGuilds()
 
-      // Update or insert user
-      await db.collection("users").updateOne(
-        { discordId: discordUser.id },
+    const db = await getDatabase()
+
+    // Upsert user data
+    const userUpdateResult = await db.collection<User>("users").updateOne(
+      { discordId: discordUser.id },
+      {
+        $set: {
+          username: discordUser.username,
+          discriminator: discordUser.discriminator,
+          avatar: discordUser.avatar,
+          email: discordUser.email,
+          lastLogin: new Date(),
+          lastSeen: new Date(),
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+          premium: { count: 0 }, // Initialize premium for new users
+          guilds: [], // Initialize guilds array for new users
+        },
+      },
+      { upsert: true },
+    )
+
+    // Fetch the updated user document
+    const user = await db.collection<User>("users").findOne({ discordId: discordUser.id })
+
+    if (!user) {
+      await Logger.logError("auth_callback_user_not_found", "User not found after upsert", discordUser.id, {
+        ip,
+        userAgent,
+      })
+      return NextResponse.redirect(new URL("/login?error=user_creation_failed", request.url))
+    }
+
+    // Update user's guilds and upsert guild data
+    const userGuildIds: string[] = []
+    for (const guild of discordGuilds) {
+      userGuildIds.push(guild.id)
+
+      // Check if the user has manage guild or admin permissions
+      const canManage =
+        guild.owner ||
+        DiscordPermissions.ADMINISTRATOR === (Number.parseInt(guild.permissions) & DiscordPermissions.ADMINISTRATOR) ||
+        DiscordPermissions.MANAGE_GUILD === (Number.parseInt(guild.permissions) & DiscordPermissions.MANAGE_GUILD)
+
+      await db.collection<Guild>("guilds").updateOne(
+        { guildId: guild.id },
         {
           $set: {
-            discordId: discordUser.id,
-            username: discordUser.username,
-            discriminator: discordUser.discriminator,
-            avatar: userAvatarUrl, // Store full URL
-            email: discordUser.email,
-            guilds: discordGuilds.map((g) => g.id),
-            lastLogin: new Date(),
-            lastSeen: new Date(),
+            name: guild.name,
+            icon: guild.icon,
+            ownerId: guild.owner ? user.discordId : "unknown", // Set ownerId if user is owner
+            // botAdded: false, // Bot status should be updated by the bot itself
+            updatedAt: new Date(),
           },
           $setOnInsert: {
-            premium: { count: 0 }, // Initialize premium count to 0 for new users
             createdAt: new Date(),
+            premium: { active: false },
+            config: {
+              prefix: "!",
+              language: "en",
+              automod: false,
+              logging: false,
+              welcomeMessages: false,
+              musicEnabled: false,
+              moderationLogs: false,
+            },
+            botAdded: false, // Default to false, bot will update this
           },
         },
         { upsert: true },
       )
-      console.log("AuthCallback: User upserted in DB:", discordUser.id)
-
-      const user = await db.collection("users").findOne({ discordId: discordUser.id })
-      if (!user) {
-        console.error("AuthCallback: User fetch after update failed")
-        throw new Error("Failed to create/update user")
-      }
-
-      // Upsert user's guilds into the 'guilds' collection
-      for (const discordGuild of discordGuilds) {
-        const guildIconUrl = getDiscordGuildIconUrl(discordGuild.id, discordGuild.icon)
-        await db.collection("guilds").updateOne(
-          { guildId: discordGuild.id },
-          {
-            $set: {
-              guildId: discordGuild.id,
-              name: discordGuild.name,
-              icon: guildIconUrl, // Store full URL
-              ownerId: discordGuild.owner ? user.discordId : null, // Only set if user is owner
-              memberCount: 0, // Will be updated by bot or later API calls
-              botAdded: true, // Assuming bot is added to all guilds user is in for dashboard purposes
-              updatedAt: new Date(),
-            },
-            $setOnInsert: {
-              premium: { active: false }, // Initialize guild premium to false
-              createdAt: new Date(),
-              config: {
-                prefix: "!",
-                language: "en",
-                automod: false,
-                logging: false,
-                welcomeMessages: false,
-                musicEnabled: false,
-                moderationLogs: false,
-                customCommands: [],
-              },
-            },
-          },
-          { upsert: true },
-        )
-      }
-      console.log("AuthCallback: Guilds upserted for user:", discordUser.id)
-
-      const authToken = generateAuthToken({
-        discordId: discordUser.id,
-        username: discordUser.username,
-      })
-      console.log("AuthCallback: Auth token generated. Length:", authToken.length)
-
-      await Logger.logLogin(discordUser.id, true, ip, userAgent)
-
-      const response = NextResponse.redirect(`${config.baseUrl}/dashboard/guilds`)
-      response.cookies.set(config.cookies.authToken, authToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: config.cookies.maxAge,
-        path: "/",
-      })
-      console.log("AuthCallback: Auth token cookie set.")
-
-      response.cookies.set(config.cookies.discordAccessToken, discordAccessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: config.cookies.maxAge,
-        path: "/",
-      })
-      console.log("AuthCallback: Discord access token cookie set.")
-
-      return response
-    } catch (dbError) {
-      const errorMessage = dbError instanceof Error ? dbError.message : "Database error"
-      console.error("AuthCallback: Database error during auth (update/find):", dbError)
-      await Logger.logError("database_error", errorMessage, userId, { ip, userAgent })
-      await Logger.logLogin(userId, false, ip, userAgent, errorMessage)
-      return NextResponse.redirect(`${config.baseUrl}/?error=database_failed`)
     }
+
+    // Update the user's list of guilds
+    await db.collection<User>("users").updateOne(
+      { discordId: user.discordId },
+      {
+        $set: { guilds: userGuildIds },
+      },
+    )
+
+    // Generate JWT
+    const jwt = await signJwt({
+      discordId: user.discordId,
+      username: user.username,
+      avatar: user.avatar,
+    })
+
+    // Set JWT as a cookie
+    cookies().set("token", jwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: tokenResponse.expires_in, // Match Discord token expiry
+      path: "/",
+      sameSite: "lax",
+    })
+
+    await Logger.log({
+      level: "info",
+      event: "user_logged_in",
+      userId: user.discordId,
+      ip,
+      userAgent,
+    })
+
+    return NextResponse.redirect(new URL("/dashboard", request.url))
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown callback error"
-    console.error("AuthCallback: Auth callback error (top-level catch):", error)
-    await Logger.logError("auth_callback_error", errorMessage, undefined, { ip, userAgent })
-    return NextResponse.redirect(`${config.baseUrl}/?error=auth_failed`)
+    const errorMessage = error instanceof Error ? error.message : "OAuth callback error"
+    await Logger.logError("oauth_callback_failed", errorMessage, undefined, {
+      ip,
+      userAgent,
+      requestUrl: request.url,
+    })
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMessage)}`, request.url))
   }
 }

@@ -3,37 +3,23 @@ export interface Guild {
   guildId: string
   name: string
   icon?: string
-  ownerId: string
-  memberCount: number
+  ownerId: string // Discord ID of the guild owner
+  botAdded: boolean // Indicates if the bot is currently in this guild
   premium: {
-    active: boolean // Whether this guild is currently premium
-    expiresAt?: Date // When this guild's premium status expires
+    active: boolean
+    expiresAt?: Date
   }
-  botAdded: boolean // New: Indicates if the bot is in this guild
-  config: GuildConfig
+  config: {
+    prefix: string
+    language: string
+    automod: boolean
+    logging: boolean
+    welcomeMessages: boolean
+    welcomeChannel?: string // New: Channel ID for welcome messages
+    welcomeMessage?: string // New: Custom welcome message content
+    musicEnabled: boolean
+    moderationLogs: boolean
+  }
   createdAt: Date
   updatedAt: Date
-}
-
-export interface GuildConfig {
-  prefix: string
-  language: string
-  automod: boolean
-  logging: boolean
-  logChannel?: string
-  welcomeMessages: boolean
-  welcomeChannel?: string // New: Channel for welcome messages
-  welcomeMessage?: string // New: Custom welcome message
-  musicEnabled: boolean
-  moderationLogs: boolean
-  moderationChannel?: string
-  customCommands: CustomCommand[]
-}
-
-export interface CustomCommand {
-  name: string
-  response: string
-  enabled: boolean
-  createdBy: string
-  createdAt: Date
 }

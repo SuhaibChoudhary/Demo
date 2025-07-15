@@ -91,3 +91,6 @@ export function generateAuthToken(user: Pick<AuthUser, "discordId" | "username">
 }
 
 export { getClientIP, getUserAgent } from "./utils"
+
+// Alias generateAuthToken for legacy imports that expect `signJwt`.
+export { generateAuthToken as signJwt }

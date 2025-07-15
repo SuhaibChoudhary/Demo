@@ -1,270 +1,322 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Gift, PlusCircle, Copy, CheckCircle, XCircle, Clock } from "lucide-react" // Added Clock, User icons
+import { Gift, Copy, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { GeneratedCode } from "@/lib/models/GeneratedCode" // Import GeneratedCode
+import { useToast } from "@/hooks/use-toast"
 import type { RedeemCode } from "@/lib/models/RedeemCode" // Import RedeemCode
 
-export default function GenerateRedeemCodesPage() {
-  const [numCodes, setNumCodes] = useState(1)
-  const [premiumCount, setPremiumCount] = useState(1)
-  const [expiryDays, setExpiryDays] = useState<number | undefined>(undefined)
-  const [generatedCodes, setGeneratedCodes] = useState<GeneratedCode[]>([])
-  const [allRedeemCodes, setAllRedeemCodes] = useState<RedeemCode[]>([]) // State for all redeem codes
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isLoadingCodes, setIsLoadingCodes] = useState(true) // Loading state for fetching all codes
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+export default function AdminRedeemCodeManagementPage() {
+  const [redeemCodes, setRedeemCodes] = useState<RedeemCode[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const { toast } = useToast()
+
+  // State for adding new codes
+  const [newCodePremiumCount, setNewCodePremiumCount] = useState(1)
+  const [newCodeExpiryDays, setNewCodeExpiryDays] = useState(30)
+  const [newCodeQuantity, setNewCodeQuantity] = useState(1)
+  const [isAddingCode, setIsAddingCode] = useState(false)
 
   useEffect(() => {
     fetchAllRedeemCodes()
   }, [])
 
   const fetchAllRedeemCodes = async () => {
-    setIsLoadingCodes(true)
+    setLoading(true)
+    setError(null)
     try {
       const response = await fetch("/api/admin/redeem-codes/all")
       if (response.ok) {
         const data = await response.json()
-        setAllRedeemCodes(data.codes)
+        setRedeemCodes(data.redeemCodes)
       } else {
         const errorData = await response.json()
-        setMessage({ type: "error", text: errorData.error || "Failed to fetch all redeem codes." })
+        setError(errorData.error || "Failed to fetch redeem codes.")
       }
-    } catch (error) {
-      console.error("Error fetching all redeem codes:", error)
-      setMessage({ type: "error", text: "An unexpected error occurred while fetching codes." })
+    } catch (err) {
+      console.error("Error fetching redeem codes:", err)
+      setError("An unexpected error occurred while fetching redeem codes.")
     } finally {
-      setIsLoadingCodes(false)
+      setLoading(false)
     }
   }
 
-  const handleGenerateCodes = async () => {
-    setIsGenerating(true)
-    setMessage(null)
-    setGeneratedCodes([])
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code)
+    toast({
+      title: "Copied!",
+      description: "Redeem code copied to clipboard.",
+    })
+  }
 
+  const handleAddCode = async () => {
+    setIsAddingCode(true)
+    setError(null)
     try {
-      const response = await fetch("/api/admin/generate-redeem-codes", {
+      const response = await fetch("/api/admin/redeem-codes/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          numCodes,
-          premiumCount,
-          expiryDays,
+          premiumCount: newCodePremiumCount,
+          expiryDays: newCodeExpiryDays,
+          quantity: newCodeQuantity,
         }),
       })
 
       if (response.ok) {
         const data = await response.json()
-        setGeneratedCodes(data.codes)
-        setMessage({ type: "success", text: `Successfully generated ${data.codes.length} codes.` })
-        fetchAllRedeemCodes() // Refresh the list of all codes
+        toast({
+          title: "Success!",
+          description: data.message,
+          variant: "default",
+        })
+        setNewCodePremiumCount(1)
+        setNewCodeExpiryDays(30)
+        setNewCodeQuantity(1)
+        fetchAllRedeemCodes() // Refresh the list
       } else {
         const errorData = await response.json()
-        setMessage({ type: "error", text: errorData.error || "Failed to generate codes." })
+        setError(errorData.error || "Failed to add redeem codes.")
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to add redeem codes.",
+          variant: "destructive",
+        })
       }
-    } catch (error) {
-      console.error("Error generating codes:", error)
-      setMessage({ type: "error", text: "An error occurred while generating codes." })
+    } catch (err) {
+      console.error("Error adding redeem codes:", err)
+      setError("An unexpected error occurred while adding redeem codes.")
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while adding redeem codes.",
+        variant: "destructive",
+      })
     } finally {
-      setIsGenerating(false)
+      setIsAddingCode(false)
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    // Optionally, show a small visual feedback
+  const handleDeleteCode = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this redeem code?")) {
+      return
+    }
+    setError(null)
+    try {
+      const response = await fetch("/api/admin/redeem-codes/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success!",
+          description: "Redeem code deleted successfully.",
+          variant: "default",
+        })
+        fetchAllRedeemCodes() // Refresh the list
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || "Failed to delete redeem code.")
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to delete redeem code.",
+          variant: "destructive",
+        })
+      }
+    } catch (err) {
+      console.error("Error deleting redeem code:", err)
+      setError("An unexpected error occurred while deleting redeem code.")
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while deleting redeem code.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const filteredRedeemCodes = redeemCodes.filter(
+    (code) =>
+      code.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      code.usedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      code.createdBy?.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto animate-fade-in">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-foreground">Loading redeem codes...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        <div className="text-center py-12">
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
+          <p className="text-red-300">{error}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in">
+    <div className="max-w-6xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Redeem Code Management</h1>
-        <p className="text-foreground">Generate and manage premium redeem codes</p>
+        <p className="text-foreground">Generate, view, and manage premium redeem codes</p>
       </div>
 
-      {message && (
-        <div
-          className={`mb-6 p-4 rounded-xl flex items-center ${
-            message.type === "success"
-              ? "bg-green-500/20 border border-green-500/30 text-green-200"
-              : "bg-red-500/20 border border-red-500/30 text-red-200"
-          }`}
-        >
-          {message.type === "success" ? (
-            <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-          ) : (
-            <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-          )}
-          <p className="text-sm">{message.text}</p>
-        </div>
-      )}
-
-      {/* Code Generation Section */}
+      {/* Add New Redeem Code */}
       <div className="neumorphic rounded-2xl p-6 mb-8">
-        <div className="flex items-center mb-6">
-          <Gift className="w-6 h-6 text-primary-400 mr-3" />
-          <h2 className="text-xl font-semibold text-white">Generate New Codes</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <h2 className="text-xl font-semibold text-white mb-6 flex items-center">
+          <Plus className="w-5 h-5 mr-2" /> Generate New Codes
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
-            <label htmlFor="numCodes" className="block text-sm font-medium text-foreground mb-2">
-              Number of Codes
-            </label>
+            <label className="block text-sm font-medium text-foreground mb-2">Premium Slots per Code</label>
             <Input
-              id="numCodes"
               type="number"
-              min="1"
-              value={numCodes}
-              onChange={(e) => setNumCodes(Number(e.target.value))}
+              value={newCodePremiumCount}
+              onChange={(e) => setNewCodePremiumCount(Math.max(1, Number.parseInt(e.target.value) || 1))}
+              min={1}
               className="neumorphic-inset bg-transparent border-0 text-white"
-              disabled={isGenerating}
+              disabled={isAddingCode}
             />
           </div>
-
           <div>
-            <label htmlFor="premiumCount" className="block text-sm font-medium text-foreground mb-2">
-              Premium Slots Granted
-            </label>
-            <select
-              id="premiumCount"
-              value={premiumCount}
-              onChange={(e) => setPremiumCount(Number(e.target.value))}
-              className="w-full neumorphic-inset bg-transparent border-0 text-white rounded-lg p-3 disabled:opacity-50"
-              disabled={isGenerating}
-            >
-              <option value={1} className="bg-background">
-                1 Premium Slot
-              </option>
-              <option value={2} className="bg-background">
-                2 Premium Slots
-              </option>
-              <option value={4} className="bg-background">
-                4 Premium Slots
-              </option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2">
-            <label htmlFor="expiryDays" className="block text-sm font-medium text-foreground mb-2">
-              Expiry (Days, optional)
-            </label>
+            <label className="block text-sm font-medium text-foreground mb-2">Expiry Days (optional)</label>
             <Input
-              id="expiryDays"
               type="number"
-              min="1"
-              placeholder="e.g., 30 for 30 days"
-              value={expiryDays || ""}
-              onChange={(e) => setExpiryDays(e.target.value ? Number(e.target.value) : undefined)}
+              value={newCodeExpiryDays}
+              onChange={(e) => setNewCodeExpiryDays(Math.max(0, Number.parseInt(e.target.value) || 0))}
+              min={0}
+              placeholder="0 for no expiry"
               className="neumorphic-inset bg-transparent border-0 text-white"
-              disabled={isGenerating}
+              disabled={isAddingCode}
             />
-            <p className="text-xs text-gray-400 mt-1">Leave empty for no expiry.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Quantity</label>
+            <Input
+              type="number"
+              value={newCodeQuantity}
+              onChange={(e) => setNewCodeQuantity(Math.max(1, Math.min(100, Number.parseInt(e.target.value) || 1)))}
+              min={1}
+              max={100}
+              className="neumorphic-inset bg-transparent border-0 text-white"
+              disabled={isAddingCode}
+            />
           </div>
         </div>
-
         <Button
-          onClick={handleGenerateCodes}
-          disabled={isGenerating || numCodes < 1}
-          className="mt-8 w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium"
+          onClick={handleAddCode}
+          disabled={isAddingCode}
+          className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium"
         >
-          {isGenerating ? (
+          {isAddingCode ? (
             <div className="flex items-center justify-center">
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
               Generating...
             </div>
           ) : (
             <>
-              <PlusCircle className="w-5 h-5 mr-2" />
+              <Plus className="w-5 h-5 mr-2" />
               Generate Codes
             </>
           )}
         </Button>
       </div>
 
-      {generatedCodes.length > 0 && (
-        <div className="neumorphic rounded-2xl p-6 mb-8">
-          <h2 className="text-xl font-semibold text-white mb-6">Recently Generated Codes</h2>
-          <div className="space-y-4">
-            {generatedCodes.map((code, index) => (
-              <div key={index} className="flex items-center justify-between bg-white/5 p-4 rounded-xl">
-                <div className="flex-1 min-w-0">
-                  <p className="font-mono text-white text-sm break-all">{code.code}</p>
-                  <p className="text-xs text-foreground mt-1">
-                    Slots: {code.premiumCount}
-                    {code.expiresAt && ` | Expires: ${new Date(code.expiresAt).toLocaleDateString()}`}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copyToClipboard(code.code)}
-                  className="ml-4 text-foreground hover:text-white"
-                >
-                  <Copy className="w-4 h-4" />
-                  <span className="sr-only">Copy code</span>
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Search */}
+      <div className="mb-6">
+        <Input
+          type="text"
+          placeholder="Search codes, used by, or created by..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-md neumorphic-inset bg-transparent border-0 text-white placeholder-foreground"
+        />
+      </div>
 
-      {/* All Redeem Codes List */}
+      {/* Redeem Codes List */}
       <div className="neumorphic rounded-2xl p-6">
-        <h2 className="text-xl font-semibold text-white mb-6">All Redeem Codes</h2>
-        {isLoadingCodes ? (
-          <div className="text-center py-8">
-            <div className="w-10 h-10 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-foreground">Loading all codes...</p>
-          </div>
-        ) : allRedeemCodes.length === 0 ? (
+        <h2 className="text-xl font-semibold text-white mb-6">All Redeem Codes ({filteredRedeemCodes.length})</h2>
+        {filteredRedeemCodes.length === 0 ? (
           <div className="text-center py-8">
             <Gift className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-            <p className="text-foreground">No redeem codes found.</p>
+            <p className="text-foreground">No redeem codes found matching your search.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {allRedeemCodes.map((code) => (
-              <div key={code.code} className="bg-white/5 p-4 rounded-xl flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-mono text-white text-sm break-all">{code.code}</p>
-                  <div className="text-xs text-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span>Slots: {code.premiumCount}</span>
-                    {code.expiresAt && (
-                      <span className="flex items-center">
-                        <Clock className="w-3 h-3 mr-1" /> Expires: {new Date(code.expiresAt).toLocaleDateString()}
-                      </span>
-                    )}
-                    {code.usedBy ? (
-                      <span className="flex items-center text-green-400">
-                        <CheckCircle className="w-3 h-3 mr-1" /> Used by: {code.usedBy}
-                        {code.usedAt && ` on ${new Date(code.usedAt).toLocaleDateString()}`}
-                      </span>
-                    ) : (
-                      <span className="flex items-center text-red-400">
-                        <XCircle className="w-3 h-3 mr-1" /> Unused
-                      </span>
-                    )}
+            {filteredRedeemCodes.map((code) => {
+              const isUsed = !!code.usedBy
+              const isExpired = code.expiresAt && new Date(code.expiresAt) < new Date()
+              return (
+                <div key={code._id} className="bg-white/5 p-4 rounded-xl flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
+                    <div>
+                      <p className="font-semibold text-white flex items-center">
+                        {code.code}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2 h-6 w-6 p-0 text-foreground hover:text-white"
+                          onClick={() => handleCopyCode(code.code)}
+                        >
+                          <Copy className="w-4 h-4" />
+                          <span className="sr-only">Copy code</span>
+                        </Button>
+                      </p>
+                      <p className="text-xs text-foreground">Slots: {code.premiumCount}</p>
+                    </div>
+                    <div className="text-xs text-foreground">
+                      {isUsed ? (
+                        <span className="inline-flex items-center text-green-400">
+                          <CheckCircle className="w-3 h-3 mr-1" /> Used by {code.usedBy} on{" "}
+                          {code.usedAt ? new Date(code.usedAt).toLocaleDateString() : "N/A"}
+                        </span>
+                      ) : isExpired ? (
+                        <span className="inline-flex items-center text-red-400">
+                          <XCircle className="w-3 h-3 mr-1" /> Expired on{" "}
+                          {code.expiresAt ? new Date(code.expiresAt).toLocaleDateString() : "N/A"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-yellow-400">
+                          <Gift className="w-3 h-3 mr-1" /> Active{" "}
+                          {code.expiresAt
+                            ? `(Expires: ${new Date(code.expiresAt).toLocaleDateString()})`
+                            : "(No Expiry)"}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400 hover:text-red-500"
+                    onClick={() => handleDeleteCode(code._id)}
+                    disabled={isAddingCode} // Disable delete while adding
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="sr-only">Delete code</span>
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copyToClipboard(code.code)}
-                  className="ml-4 text-foreground hover:text-white"
-                >
-                  <Copy className="w-4 h-4" />
-                  <span className="sr-only">Copy code</span>
-                </Button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

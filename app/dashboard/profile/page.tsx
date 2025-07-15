@@ -1,155 +1,55 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  User,
-  Server,
-  Crown,
-  Calendar,
-  Settings,
-  Edit3,
-  Save,
-  XCircle,
-  CheckCircle,
-  FileText,
-  BookOpen,
-} from "lucide-react" // Added FileText, BookOpen
+import { UserAvatar } from "@/components/user-avatar"
+import { Crown, Mail, Calendar, LogIn, Info, FileText, ShieldCheck, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import Link from "next/link" // Import Link
+import Link from "next/link"
 
-interface UserProfile {
+interface UserData {
+  discordId: string
   username: string
-  email: string
-  joinDate: string
-  premiumCount: number // Changed from plan
-  premiumExpiresAt?: string // New field
-  serversManaged: number
-  totalMembers: number
+  discriminator: string
   avatar?: string
+  email?: string
+  premium: {
+    count: number
+    expiresAt?: string
+  }
+  createdAt: string
+  lastLogin: string
 }
 
 export default function ProfilePage() {
-  const [isEditing, setIsEditing] = useState(false)
-  const [profile, setProfile] = useState<UserProfile>({
-    username: "",
-    email: "",
-    joinDate: "",
-    premiumCount: 0,
-    premiumExpiresAt: undefined,
-    serversManaged: 0,
-    totalMembers: 0,
-    avatar: "/placeholder.svg?height=96&width=96",
-  })
-  const [originalProfile, setOriginalProfile] = useState<UserProfile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [user, setUser] = useState<UserData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchUserProfile()
   }, [])
 
   const fetchUserProfile = async () => {
-    setIsLoading(true)
+    setLoading(true)
+    setError(null)
     try {
       const response = await fetch("/api/user")
       if (response.ok) {
         const data = await response.json()
-        const fetchedProfile: UserProfile = {
-          username: data.user.username,
-          email: data.user.email,
-          joinDate: data.user.createdAt,
-          premiumCount: data.user.premium?.count || 0, // Access premium.count
-          premiumExpiresAt: data.user.premium?.expiresAt, // Access premium.expiresAt
-          serversManaged: data.stats.totalGuilds,
-          totalMembers: data.stats.totalMembers,
-          avatar: data.user.avatar || "/placeholder.svg?height=96&width=96",
-        }
-        setProfile(fetchedProfile)
-        setOriginalProfile(fetchedProfile)
-      } else {
-        console.error("Failed to fetch user profile:", response.statusText)
-        setSaveMessage({ type: "error", text: "Failed to load profile data." })
-      }
-    } catch (error) {
-      console.error("Error fetching user profile:", error)
-      setSaveMessage({ type: "error", text: "An error occurred while loading profile." })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSave = async () => {
-    setIsSaving(true)
-    setSaveMessage(null)
-    try {
-      const response = await fetch("/api/user", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: profile.username,
-          email: profile.email,
-        }),
-      })
-
-      if (response.ok) {
-        setSaveMessage({ type: "success", text: "Profile updated successfully!" })
-        setIsEditing(false)
-        setOriginalProfile(profile)
+        setUser(data.user)
       } else {
         const errorData = await response.json()
-        setSaveMessage({ type: "error", text: errorData.error || "Failed to save changes." })
+        setError(errorData.error || "Failed to load user profile.")
       }
-    } catch (error) {
-      console.error("Error saving profile:", error)
-      setSaveMessage({ type: "error", text: "An error occurred while saving profile." })
+    } catch (err) {
+      console.error("Error fetching user profile:", err)
+      setError("An unexpected error occurred while fetching your profile.")
     } finally {
-      setIsSaving(false)
+      setLoading(false)
     }
   }
 
-  const handleCancelEdit = () => {
-    if (originalProfile) {
-      setProfile(originalProfile)
-    }
-    setIsEditing(false)
-    setSaveMessage(null)
-  }
-
-  const stats = [
-    {
-      label: "Servers Managed",
-      value: profile.serversManaged,
-      icon: Server,
-      color: "text-primary-400",
-    },
-    {
-      label: "Total Members",
-      value: profile.totalMembers.toLocaleString(),
-      icon: User,
-      color: "text-primary-400",
-    },
-    {
-      label: "Premium Slots",
-      value: profile.premiumCount,
-      icon: Crown,
-      color: "text-yellow-400",
-    },
-    {
-      label: "Member Since",
-      value: profile.joinDate ? new Date(profile.joinDate).toLocaleDateString() : "N/A",
-      icon: Calendar,
-      color: "text-primary-400",
-    },
-  ]
-
-  const isPremiumActive =
-    profile.premiumCount > 0 && profile.premiumExpiresAt && new Date(profile.premiumExpiresAt) > new Date()
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="max-w-4xl mx-auto animate-fade-in">
         <div className="text-center py-12">
@@ -160,203 +60,115 @@ export default function ProfilePage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        <div className="text-center py-12">
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
+          <p className="text-red-300">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const isPremiumActive = user?.premium?.expiresAt && new Date(user.premium.expiresAt) > new Date()
+
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">User Profile</h1>
-        <p className="text-foreground">Manage your account settings and view your statistics</p>
+      <div className="text-center mb-8">
+        <UserAvatar
+          src={user?.avatar}
+          alt={user?.username}
+          className="w-24 h-24 mx-auto mb-4 border-4 border-primary-500/50"
+        />
+        <h1 className="text-4xl font-bold text-white mb-2">
+          {user?.username}
+          <span className="text-foreground text-xl font-normal">#{user?.discriminator}</span>
+        </h1>
+        <p className="text-foreground text-lg">Your Personal Dashboard</p>
       </div>
 
-      {saveMessage && (
-        <div
-          className={`mb-6 p-4 rounded-xl flex items-center ${
-            saveMessage.type === "success"
-              ? "bg-green-500/20 border border-green-500/30 text-green-200"
-              : "bg-red-500/20 border border-red-500/30 text-red-200"
-          }`}
-        >
-          {saveMessage.type === "success" ? (
-            <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-          ) : (
-            <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-          )}
-          <p className="text-sm">{saveMessage.text}</p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Profile Card */}
-        <div className="lg:col-span-1">
-          <div className="neumorphic rounded-2xl p-6">
-            <div className="text-center mb-6">
-              <div className="w-24 h-24 neumorphic rounded-full flex items-center justify-center mx-auto mb-4">
-                <img src={profile.avatar || "/placeholder.svg"} alt="Profile" className="w-20 h-20 rounded-full" />
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-1">{profile.username}</h2>
-              <p className="text-foreground text-sm">{profile.email}</p>
-              <div className="mt-3">
-                <span
-                  className={`
-                  inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                  ${isPremiumActive ? "bg-yellow-500/20 text-yellow-400" : "bg-gray-500/20 text-gray-400"}
-                `}
-                >
-                  <Crown className="w-3 h-3 mr-1" />
-                  {isPremiumActive ? "Premium Active" : "Free Plan"}
-                </span>
-                {isPremiumActive && profile.premiumExpiresAt && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Expires: {new Date(profile.premiumExpiresAt).toLocaleDateString()}
-                  </p>
-                )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* User Details */}
+        <div className="neumorphic rounded-2xl p-6">
+          <h2 className="text-xl font-semibold text-white mb-6">Account Details</h2>
+          <div className="space-y-4">
+            <div className="flex items-center">
+              <Mail className="w-5 h-5 text-primary-400 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Email</p>
+                <p className="text-white">{user?.email || "N/A"}</p>
               </div>
             </div>
+            <div className="flex items-center">
+              <Calendar className="w-5 h-5 text-primary-400 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Member Since</p>
+                <p className="text-white">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</p>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <LogIn className="w-5 h-5 text-primary-400 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Last Login</p>
+                <p className="text-white">{user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : "N/A"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <Button
-              onClick={() => setIsEditing(!isEditing)}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl"
-            >
-              <Edit3 className="w-4 h-4 mr-2" />
-              {isEditing ? "Cancel Edit" : "Edit Profile"}
-            </Button>
+        {/* Premium Status & Other Info */}
+        <div className="space-y-6">
+          <div className="neumorphic rounded-2xl p-6">
+            <h2 className="text-xl font-semibold text-white mb-6">Premium Status</h2>
+            <div className="flex items-center mb-4">
+              <Crown className="w-6 h-6 text-yellow-400 mr-3" />
+              <div>
+                <p className="text-lg font-bold text-white">{isPremiumActive ? "Premium User" : "Free User"}</p>
+                <p className="text-sm text-foreground">
+                  Available Slots: <span className="font-semibold text-white">{user?.premium?.count || 0}</span>
+                </p>
+              </div>
+            </div>
+            {isPremiumActive && user?.premium?.expiresAt && (
+              <p className="text-foreground text-sm mb-4">
+                Expires:{" "}
+                <span className="font-semibold text-white">
+                  {new Date(user.premium.expiresAt).toLocaleDateString()}
+                </span>
+              </p>
+            )}
+            <Link href="/dashboard/premium">
+              <Button className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white py-3 rounded-xl font-medium">
+                Manage Premium
+              </Button>
+            </Link>
           </div>
 
-          {/* Policy Links */}
-          <div className="neumorphic rounded-2xl p-6 mt-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Policies</h3>
+          {/* Legal Links */}
+          <div className="neumorphic rounded-2xl p-6">
+            <h2 className="text-xl font-semibold text-white mb-6">Legal & Info</h2>
             <div className="space-y-3">
               <Link
                 href="/privacy-policy"
                 className="flex items-center text-foreground hover:text-white transition-colors"
               >
-                <FileText className="w-4 h-4 mr-2" />
+                <ShieldCheck className="w-5 h-5 mr-3" />
                 Privacy Policy
               </Link>
               <Link
                 href="/terms-of-service"
                 className="flex items-center text-foreground hover:text-white transition-colors"
               >
-                <BookOpen className="w-4 h-4 mr-2" />
+                <FileText className="w-5 h-5 mr-3" />
                 Terms of Service
               </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {stats.map((stat, index) => (
-              <div key={index} className="neumorphic rounded-2xl p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-foreground text-sm">{stat.label}</p>
-                    <p className="text-2xl font-bold text-white">{stat.value}</p>
-                  </div>
-                  <stat.icon className={`w-8 h-8 ${stat.color}`} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Account Settings */}
-          <div className="neumorphic rounded-2xl p-6">
-            <div className="flex items-center mb-6">
-              <Settings className="w-6 h-6 text-primary-400 mr-3" />
-              <h3 className="text-xl font-semibold text-white">Account Settings</h3>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
-                  Username
-                </label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={profile.username}
-                  onChange={(e) => setProfile({ ...profile, username: e.target.value })}
-                  disabled={!isEditing}
-                  className="neumorphic-inset bg-transparent border-0 text-white disabled:opacity-50"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                  Email Address
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  disabled={!isEditing}
-                  className="neumorphic-inset bg-transparent border-0 text-white disabled:opacity-50"
-                />
-              </div>
-
-              {isEditing && (
-                <div className="flex space-x-4 pt-4">
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="bg-primary-600 hover:bg-primary-700 text-white"
-                  >
-                    {isSaving ? (
-                      <div className="flex items-center">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                        Saving...
-                      </div>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={handleCancelEdit} disabled={isSaving}>
-                    Cancel
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="neumorphic rounded-2xl p-6">
-            <h3 className="text-xl font-semibold text-white mb-6">Recent Activity</h3>
-
-            <div className="space-y-4">
-              {[
-                {
-                  action: "Updated server configuration",
-                  server: "Awesome Gaming Server",
-                  time: "2 hours ago",
-                },
-                {
-                  action: "Activated premium for Dev Community", // Example activity
-                  server: "Dev Community",
-                  time: "1 day ago",
-                },
-                {
-                  action: "Added new server",
-                  server: "Dev Community",
-                  time: "3 days ago",
-                },
-              ].map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between py-3 border-b border-white/10 last:border-b-0"
-                >
-                  <div>
-                    <p className="text-white font-medium">{activity.action}</p>
-                    {activity.server && <p className="text-foreground text-sm">{activity.server}</p>}
-                  </div>
-                  <span className="text-foreground text-sm">{activity.time}</span>
-                </div>
-              ))}
+              <Link href="/about" className="flex items-center text-foreground hover:text-white transition-colors">
+                <Info className="w-5 h-5 mr-3" />
+                About Noisy Bot
+              </Link>
             </div>
           </div>
         </div>

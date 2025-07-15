@@ -68,6 +68,7 @@ export default function GuildConfigPage() {
   const [userPremiumCount, setUserPremiumCount] = useState(0)
   const [isActivatingPremium, setIsActivatingPremium] = useState(false)
   const [premiumMessage, setPremiumMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [showConfetti, setShowConfetti] = useState(false) // State for confetti animation
 
   useEffect(() => {
     fetchGuildAndUserPremium()
@@ -155,6 +156,8 @@ export default function GuildConfigPage() {
               }
             : null,
         )
+        setShowConfetti(true) // Trigger confetti
+        setTimeout(() => setShowConfetti(false), 3000) // Hide confetti after 3 seconds
       } else {
         const errorData = await response.json()
         setPremiumMessage({ type: "error", text: errorData.error || "Failed to activate premium." })
@@ -191,6 +194,14 @@ export default function GuildConfigPage() {
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
+      {showConfetti && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
+          {/* Simple confetti animation - replace with a proper library if needed */}
+          <div className="absolute w-4 h-4 bg-yellow-400 rounded-full animate-confetti-1" />
+          <div className="absolute w-3 h-3 bg-pink-400 rounded-full animate-confetti-2" />
+          <div className="absolute w-5 h-5 bg-blue-400 rounded-full animate-confetti-3" />
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center mb-8">
         <Link href="/dashboard/guilds">

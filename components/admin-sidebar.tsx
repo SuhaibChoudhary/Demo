@@ -1,44 +1,80 @@
 "use client"
 
-import Link from "next/link"
+import { Bot, Crown, Gift, Home, Settings, Users } from "lucide-react"
 import { usePathname } from "next/navigation"
-import { Gift, Users, BarChart3 } from "lucide-react"
 
-const adminNavigation = [
-  { name: "Overview", href: "/dashboard/admin", icon: BarChart3 },
-  { name: "Redeem Codes", href: "/dashboard/admin/redeem-codes", icon: Gift },
-  { name: "User Management", href: "/dashboard/admin/users", icon: Users },
-  // Add more admin links here as needed
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+
+const adminMenuItems = [
+  {
+    title: "Dashboard",
+    href: "/dashboard/admin",
+    icon: Home,
+  },
+  {
+    title: "Users",
+    href: "/dashboard/admin/users",
+    icon: Users,
+  },
+  {
+    title: "Guilds",
+    href: "/dashboard/admin/guilds", // New link
+    icon: Bot,
+  },
+  {
+    title: "Redeem Codes",
+    href: "/dashboard/admin/redeem-codes",
+    icon: Gift,
+  },
+  {
+    title: "Settings",
+    href: "/dashboard/admin/settings",
+    icon: Settings,
+  },
 ]
 
 export function AdminSidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="w-56 flex-shrink-0 neumorphic border-r border-white/10 p-4 hidden lg:block">
-      <h2 className="text-xl font-bold text-white mb-6">Admin Panel</h2>
-      <nav className="space-y-2">
-        {adminNavigation.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`
-                flex items-center px-4 py-3 rounded-xl transition-all duration-200
-                ${
-                  isActive
-                    ? "bg-primary-600/20 text-primary-300 neumorphic-inset"
-                    : "text-foreground hover:text-white hover:bg-primary-500/10"
-                }
-              `}
-            >
-              <item.icon className="w-5 h-5 mr-3" />
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          )
-        })}
-      </nav>
-    </div>
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-4">
+          <Crown className="w-6 h-6 text-yellow-400" />
+          <span className="text-xl font-bold text-white">Admin Panel</span>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminMenuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                    <a href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarRail />
+    </Sidebar>
   )
 }
