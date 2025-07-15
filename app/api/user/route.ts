@@ -21,8 +21,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    console.log("API/User: User authenticated. Attempting to get database connection.")
     const db = await getDatabase()
+    console.log("API/User: Database connection obtained. Fetching user data from DB.")
     const userData = await db.collection("users").findOne({ discordId: user.discordId })
+    console.log("API/User: User data fetched from DB:", !!userData)
 
     if (!userData) {
       await Logger.logError("user_not_found", "User data missing from database", user.discordId, { ip, userAgent })
@@ -30,12 +33,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user stats
+    console.log("API/User: Fetching user's guilds for stats.")
     const guilds = await db
       .collection("guilds")
       .find({
         guildId: { $in: userData.guilds || [] },
       })
       .toArray()
+    console.log("API/User: Guilds fetched. Calculating stats.")
 
     const stats = {
       totalGuilds: guilds.length,
@@ -44,6 +49,7 @@ export async function GET(request: NextRequest) {
         (g) => g.premium.active && g.premium.expiresAt && new Date(g.premium.expiresAt) > new Date(),
       ).length,
     }
+    console.log("API/User: Stats calculated:", stats)
 
     // Log successful user data access
     await Logger.log({
@@ -53,6 +59,7 @@ export async function GET(request: NextRequest) {
       ip,
       userAgent,
     })
+    console.log("API/User: User data access logged. Returning response.")
 
     return NextResponse.json({
       user: {
@@ -70,6 +77,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Get user error"
+    console.error("API/User: Error in GET handler:", errorMessage, error) // Log the full error object
     await Logger.logError("get_user_error", errorMessage, undefined, { ip, userAgent })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
