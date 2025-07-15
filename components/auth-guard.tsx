@@ -19,7 +19,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   const checkAuth = async () => {
     try {
+      console.log("AuthGuard: Checking authentication...")
       const response = await fetch("/api/user")
+      console.log("AuthGuard: /api/user response status:", response.status)
       if (response.ok) {
         setIsAuthenticated(true)
       } else {
@@ -27,6 +29,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
         router.push("/")
       }
     } catch (error) {
+      console.error("AuthGuard: Error during authentication check:", error)
       setIsAuthenticated(false)
       router.push("/")
     }

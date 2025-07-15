@@ -36,16 +36,18 @@ export default function LoginPage() {
 
   const checkAuthStatus = async () => {
     try {
+      console.log("LoginPage: Checking authentication status...")
       const response = await fetch("/api/user", {
         credentials: "include", // Ensure cookies are sent
       })
+      console.log("LoginPage: /api/user response status:", response.status)
       if (response.ok) {
         // User is already logged in, redirect to dashboard
         window.location.href = "/dashboard/guilds"
         return
       }
     } catch (error) {
-      // User is not logged in, stay on login page
+      console.error("LoginPage: Error during authentication check:", error)
       console.log("User not authenticated")
     } finally {
       setIsCheckingAuth(false)
