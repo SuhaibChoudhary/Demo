@@ -82,8 +82,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "This guild is already premium." }, { status: 400 })
     }
 
-    // Determine premium expiry for the guild (use user's expiry or default to 30 days from now)
-    const guildPremiumExpiresAt = currentUser.premium.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    // Determine premium expiry for the guild: it should be the user's premium expiry.
+    // If user's premium is expired or doesn't exist, set it to 30 days from now.
+    // Otherwise, use the user's current premium expiry.
+    let userPremiumExpiresAt = currentUser.premium?.expiresAt || new Date()
+    if (userPremiumExpiresAt < new Date()) {
+      userPremiumExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+    }
+
+    const guildPremiumExpiresAt = userPremiumExpiresAt
 
     // Decrement user's premium count and update guild's premium status
     const session = db.client.startSession()
@@ -94,7 +101,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { _id: currentUser._id },
         {
           $inc: { "premium.count": -1 }, // Decrement count
-          $set: { lastSeen: new Date() },
+          $set: {
+            "premium.expiresAt": userPremiumExpiresAt, // Ensure user's expiry is updated if it was old
+            lastSeen: new Date(),
+          },
         },
         { session },
       )
@@ -121,15 +131,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         userAgent,
         metadata: {
           guildId: params.id,
-          newPremiumCount: currentUser.premium.count - 1,
+          newPremiumCount: (currentUser.premium?.count || 0) - 1,
           expiresAt: guildPremiumExpiresAt,
         },
       })
 
       return NextResponse.json({
         success: true,
-        message: `Premium activated for ${targetGuild.name}! You have ${currentUser.premium.count - 1} slots remaining.`,
-        newPremiumCount: currentUser.premium.count - 1,
+        message: `Premium activated for ${targetGuild.name}! You have ${(currentUser.premium?.count || 0) - 1} slots remaining.`,
+        newPremiumCount: (currentUser.premium?.count || 0) - 1,
         guildPremiumExpiresAt: guildPremiumExpiresAt.toISOString(),
       })
     } catch (transactionError) {

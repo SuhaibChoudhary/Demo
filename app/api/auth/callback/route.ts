@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
               icon: guildIconUrl, // Store full URL
               ownerId: discordGuild.owner ? user.discordId : null, // Only set if user is owner
               memberCount: 0, // Will be updated by bot or later API calls
+              botAdded: true, // Assuming bot is added to all guilds user is in for dashboard purposes
               updatedAt: new Date(),
             },
             $setOnInsert: {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Server, Users, Settings, Crown, ChevronRight } from "lucide-react"
+import { Server, Users, Settings, Crown, ChevronRight, Bot } from "lucide-react" // Added Bot, CheckCircle, XCircle
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -15,6 +15,7 @@ interface Guild {
     active: boolean
     expiresAt?: string
   }
+  botAdded: boolean // New
   config: {
     prefix: string
     language: string
@@ -45,7 +46,10 @@ export default function GuildsPage() {
     }
   }
 
-  const filteredGuilds = guilds.filter((guild) => guild.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Filter guilds by search term AND botAdded status
+  const filteredGuilds = guilds.filter(
+    (guild) => guild.name.toLowerCase().includes(searchTerm.toLowerCase()) && guild.botAdded,
+  )
 
   if (loading) {
     return (
@@ -135,7 +139,15 @@ export default function GuildsPage() {
                   {guild.premium?.active &&
                     guild.premium?.expiresAt &&
                     new Date(guild.premium.expiresAt) > new Date() && <Crown className="w-4 h-4 text-yellow-400" />}
-                  <span className={`text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400`}>Bot Active</span>
+                  {guild.botAdded ? (
+                    <span className={`text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 flex items-center`}>
+                      <Bot className="w-3 h-3 mr-1" /> Active
+                    </span>
+                  ) : (
+                    <span className={`text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-400 flex items-center`}>
+                      <Bot className="w-3 h-3 mr-1" /> Inactive
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -159,8 +171,8 @@ export default function GuildsPage() {
       {filteredGuilds.length === 0 && (
         <div className="text-center py-12">
           <Server className="w-16 h-16 text-primary-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-foreground mb-2">No servers found</h3>
-          <p className="text-foreground">Try adjusting your search terms</p>
+          <h3 className="text-xl font-semibold text-foreground mb-2">No active servers found</h3>
+          <p className="text-foreground">The bot might not be in these servers, or they don't match your search.</p>
         </div>
       )}
     </div>

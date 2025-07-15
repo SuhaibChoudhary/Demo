@@ -185,7 +185,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             logging: newConfig.logging || false,
             logChannel: newConfig.logChannel,
             welcomeMessages: newConfig.welcomeMessages || false,
-            welcomeChannel: newConfig.welcomeChannel,
+            welcomeChannel: newConfig.welcomeChannel, // New
+            welcomeMessage: newConfig.welcomeMessage, // New
             musicEnabled: newConfig.musicEnabled || false,
             moderationLogs: newConfig.moderationLogs || false,
             moderationChannel: newConfig.moderationChannel,

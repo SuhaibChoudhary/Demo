@@ -9,6 +9,7 @@ export interface Guild {
     active: boolean // Whether this guild is currently premium
     expiresAt?: Date // When this guild's premium status expires
   }
+  botAdded: boolean // New: Indicates if the bot is in this guild
   config: GuildConfig
   createdAt: Date
   updatedAt: Date
@@ -21,7 +22,8 @@ export interface GuildConfig {
   logging: boolean
   logChannel?: string
   welcomeMessages: boolean
-  welcomeChannel?: string
+  welcomeChannel?: string // New: Channel for welcome messages
+  welcomeMessage?: string // New: Custom welcome message
   musicEnabled: boolean
   moderationLogs: boolean
   moderationChannel?: string

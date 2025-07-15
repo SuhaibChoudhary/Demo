@@ -15,11 +15,13 @@ import {
   Crown,
   CheckCircle,
   XCircle,
+  Bot,
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea" // Import Textarea
 
 interface GuildConfig {
   prefix: string
@@ -27,6 +29,8 @@ interface GuildConfig {
   automod: boolean
   logging: boolean
   welcomeMessages: boolean
+  welcomeChannel?: string // New
+  welcomeMessage?: string // New
   musicEnabled: boolean
   moderationLogs: boolean
 }
@@ -39,6 +43,7 @@ interface GuildData {
     active: boolean
     expiresAt?: string
   }
+  botAdded: boolean // New
   config: GuildConfig
 }
 
@@ -51,6 +56,8 @@ export default function GuildConfigPage() {
     automod: true,
     logging: true,
     welcomeMessages: false,
+    welcomeChannel: undefined, // Initialize
+    welcomeMessage: undefined, // Initialize
     musicEnabled: true,
     moderationLogs: true,
   })
@@ -254,6 +261,59 @@ export default function GuildConfigPage() {
             </div>
           </div>
 
+          {/* Welcome Messages Settings */}
+          <div className="neumorphic rounded-2xl p-6">
+            <div className="flex items-center mb-6">
+              <MessageSquare className="w-6 h-6 text-primary-400 mr-3" />
+              <h2 className="text-xl font-semibold text-white">Welcome Messages</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-white">Enable Welcome Messages</h3>
+                  <p className="text-sm text-foreground">Send a message when a new member joins</p>
+                </div>
+                <Switch
+                  checked={config.welcomeMessages}
+                  onCheckedChange={(checked) => setConfig({ ...config, welcomeMessages: checked })}
+                  disabled={!canManage}
+                />
+              </div>
+
+              {config.welcomeMessages && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Welcome Channel (ID)</label>
+                    <Input
+                      type="text"
+                      value={config.welcomeChannel || ""}
+                      onChange={(e) => setConfig({ ...config, welcomeChannel: e.target.value })}
+                      className="neumorphic-inset bg-transparent border-0 text-white"
+                      placeholder="e.g., 123456789012345678"
+                      disabled={!canManage}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Enter the ID of the channel for welcome messages.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Custom Welcome Message</label>
+                    <Textarea
+                      value={config.welcomeMessage || ""}
+                      onChange={(e) => setConfig({ ...config, welcomeMessage: e.target.value })}
+                      className="neumorphic-inset bg-transparent border-0 text-white"
+                      placeholder="Welcome {user} to {server}! Enjoy your stay."
+                      rows={4}
+                      disabled={!canManage}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Use {"{user}"} for username, {"{server}"} for server name.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* Moderation Settings */}
           <div className="neumorphic rounded-2xl p-6">
             <div className="flex items-center mb-6">
@@ -288,26 +348,14 @@ export default function GuildConfigPage() {
             </div>
           </div>
 
-          {/* Features */}
+          {/* Other Features */}
           <div className="neumorphic rounded-2xl p-6">
             <div className="flex items-center mb-6">
-              <MessageSquare className="w-6 h-6 text-primary-400 mr-3" />
-              <h2 className="text-xl font-semibold text-white">Features</h2>
+              <Volume2 className="w-6 h-6 text-primary-400 mr-3" />
+              <h2 className="text-xl font-semibold text-white">Other Features</h2>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-white">Welcome Messages</h3>
-                  <p className="text-sm text-foreground">Send welcome messages to new members</p>
-                </div>
-                <Switch
-                  checked={config.welcomeMessages}
-                  onCheckedChange={(checked) => setConfig({ ...config, welcomeMessages: checked })}
-                  disabled={!canManage}
-                />
-              </div>
-
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-white">Music Commands</h3>
@@ -337,6 +385,30 @@ export default function GuildConfigPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Bot Status */}
+          <div className="neumorphic rounded-2xl p-6">
+            <div className="flex items-center mb-4">
+              <Bot className="w-6 h-6 text-primary-400 mr-3" />
+              <h3 className="text-lg font-semibold text-white">Bot Status</h3>
+            </div>
+            <p className="text-foreground mb-2">
+              {guildData?.botAdded ? (
+                <span className="inline-flex items-center text-green-400">
+                  <CheckCircle className="w-4 h-4 mr-1" /> Bot is active in this server.
+                </span>
+              ) : (
+                <span className="inline-flex items-center text-red-400">
+                  <XCircle className="w-4 h-4 mr-1" /> Bot is not in this server.
+                </span>
+              )}
+            </p>
+            {!guildData?.botAdded && (
+              <p className="text-xs text-gray-400 mt-2">
+                Add the bot to this server to enable full functionality and configuration.
+              </p>
+            )}
+          </div>
+
           {/* Premium Activation */}
           <div className="neumorphic rounded-2xl p-6">
             <div className="flex items-center mb-4">

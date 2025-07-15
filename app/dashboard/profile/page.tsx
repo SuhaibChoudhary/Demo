@@ -1,9 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { User, Server, Crown, Calendar, Settings, Edit3, Save, XCircle, CheckCircle } from "lucide-react"
+import {
+  User,
+  Server,
+  Crown,
+  Calendar,
+  Settings,
+  Edit3,
+  Save,
+  XCircle,
+  CheckCircle,
+  FileText,
+  BookOpen,
+} from "lucide-react" // Added FileText, BookOpen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Link from "next/link" // Import Link
 
 interface UserProfile {
   username: string
@@ -207,6 +220,27 @@ export default function ProfilePage() {
               <Edit3 className="w-4 h-4 mr-2" />
               {isEditing ? "Cancel Edit" : "Edit Profile"}
             </Button>
+          </div>
+
+          {/* Policy Links */}
+          <div className="neumorphic rounded-2xl p-6 mt-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Policies</h3>
+            <div className="space-y-3">
+              <Link
+                href="/privacy-policy"
+                className="flex items-center text-foreground hover:text-white transition-colors"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms-of-service"
+                className="flex items-center text-foreground hover:text-white transition-colors"
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                Terms of Service
+              </Link>
+            </div>
           </div>
         </div>
 

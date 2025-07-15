@@ -32,11 +32,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Fetch all guilds that the user is a member of (based on the 'guilds' array in the user document)
+    // Fetch all guilds that the user is a member of AND where the bot is added
     const guilds = await db
       .collection("guilds")
       .find({
         guildId: { $in: userData.guilds || [] },
+        botAdded: true, // Filter for guilds where the bot is active
       })
       .toArray()
 
