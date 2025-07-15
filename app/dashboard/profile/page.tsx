@@ -1,20 +1,107 @@
 "use client"
 
-import { useState } from "react"
-import { User, Server, Crown, Calendar, Settings, Edit3 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { User, Server, Crown, Calendar, Settings, Edit3, Save, XCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+interface UserProfile {
+  username: string
+  email: string
+  joinDate: string
+  plan: string
+  serversManaged: number
+  totalMembers: number
+  avatar?: string
+}
+
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
-  const [profile, setProfile] = useState({
-    username: "DiscordUser#1234",
-    email: "user@example.com",
-    joinDate: "2023-01-15",
-    plan: "Gold",
-    serversManaged: 12,
-    totalMembers: 15420,
+  const [profile, setProfile] = useState<UserProfile>({
+    username: "",
+    email: "",
+    joinDate: "",
+    plan: "",
+    serversManaged: 0,
+    totalMembers: 0,
+    avatar: "/placeholder.svg?height=96&width=96", // Default placeholder
   })
+  const [originalProfile, setOriginalProfile] = useState<UserProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  useEffect(() => {
+    fetchUserProfile()
+  }, [])
+
+  const fetchUserProfile = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/user")
+      if (response.ok) {
+        const data = await response.json()
+        const fetchedProfile: UserProfile = {
+          username: data.user.username,
+          email: data.user.email,
+          joinDate: data.user.createdAt, // Assuming createdAt is the join date
+          plan: data.user.premiumStatus,
+          serversManaged: data.stats.totalGuilds,
+          totalMembers: data.stats.totalMembers,
+          avatar: data.user.avatar || "/placeholder.svg?height=96&width=96",
+        }
+        setProfile(fetchedProfile)
+        setOriginalProfile(fetchedProfile) // Store original for reset
+      } else {
+        console.error("Failed to fetch user profile:", response.statusText)
+        setSaveMessage({ type: "error", text: "Failed to load profile data." })
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error)
+      setSaveMessage({ type: "error", text: "An error occurred while loading profile." })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    setSaveMessage(null)
+    try {
+      const response = await fetch("/api/user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: profile.username,
+          email: profile.email,
+        }),
+      })
+
+      if (response.ok) {
+        setSaveMessage({ type: "success", text: "Profile updated successfully!" })
+        setIsEditing(false)
+        setOriginalProfile(profile) // Update original profile to new saved state
+      } else {
+        const errorData = await response.json()
+        setSaveMessage({ type: "error", text: errorData.error || "Failed to save changes." })
+      }
+    } catch (error) {
+      console.error("Error saving profile:", error)
+      setSaveMessage({ type: "error", text: "An error occurred while saving profile." })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    if (originalProfile) {
+      setProfile(originalProfile) // Revert to original data
+    }
+    setIsEditing(false)
+    setSaveMessage(null)
+  }
 
   const stats = [
     {
@@ -37,11 +124,22 @@ export default function ProfilePage() {
     },
     {
       label: "Member Since",
-      value: new Date(profile.joinDate).toLocaleDateString(),
+      value: profile.joinDate ? new Date(profile.joinDate).toLocaleDateString() : "N/A",
       icon: Calendar,
       color: "text-purple-400",
     },
   ]
+
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        <div className="text-center py-12">
+          <div className="w-16 h-16 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-rose-200">Loading profile...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -51,13 +149,30 @@ export default function ProfilePage() {
         <p className="text-gray-400">Manage your account settings and view your statistics</p>
       </div>
 
+      {saveMessage && (
+        <div
+          className={`mb-6 p-4 rounded-xl flex items-center ${
+            saveMessage.type === "success"
+              ? "bg-green-500/20 border border-green-500/30 text-green-200"
+              : "bg-red-500/20 border border-red-500/30 text-red-200"
+          }`}
+        >
+          {saveMessage.type === "success" ? (
+            <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+          ) : (
+            <XCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+          )}
+          <p className="text-sm">{saveMessage.text}</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Profile Card */}
         <div className="lg:col-span-1">
           <div className="neumorphic rounded-2xl p-6">
             <div className="text-center mb-6">
               <div className="w-24 h-24 neumorphic rounded-full flex items-center justify-center mx-auto mb-4">
-                <img src="/placeholder.svg?height=96&width=96" alt="Profile" className="w-20 h-20 rounded-full" />
+                <img src={profile.avatar || "/placeholder.svg"} alt="Profile" className="w-20 h-20 rounded-full" />
               </div>
               <h2 className="text-xl font-semibold text-white mb-1">{profile.username}</h2>
               <p className="text-gray-400 text-sm">{profile.email}</p>
@@ -65,11 +180,11 @@ export default function ProfilePage() {
                 <span
                   className={`
                   inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                  ${profile.plan === "Gold" ? "bg-yellow-500/20 text-yellow-400" : "bg-gray-500/20 text-gray-400"}
+                  ${profile.plan === "gold" ? "bg-yellow-500/20 text-yellow-400" : "bg-gray-500/20 text-gray-400"}
                 `}
                 >
                   <Crown className="w-3 h-3 mr-1" />
-                  {profile.plan} Plan
+                  {profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)} Plan
                 </span>
               </div>
             </div>
@@ -79,7 +194,7 @@ export default function ProfilePage() {
               className="w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl"
             >
               <Edit3 className="w-4 h-4 mr-2" />
-              {isEditing ? "Cancel" : "Edit Profile"}
+              {isEditing ? "Cancel Edit" : "Edit Profile"}
             </Button>
           </div>
         </div>
@@ -110,8 +225,11 @@ export default function ProfilePage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                  Username
+                </label>
                 <Input
+                  id="username"
                   type="text"
                   value={profile.username}
                   onChange={(e) => setProfile({ ...profile, username: e.target.value })}
@@ -121,8 +239,11 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address
+                </label>
                 <Input
+                  id="email"
                   type="email"
                   value={profile.email}
                   onChange={(e) => setProfile({ ...profile, email: e.target.value })}
@@ -133,8 +254,24 @@ export default function ProfilePage() {
 
               {isEditing && (
                 <div className="flex space-x-4 pt-4">
-                  <Button className="bg-primary-600 hover:bg-primary-700 text-white">Save Changes</Button>
-                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="bg-primary-600 hover:bg-primary-700 text-white"
+                  >
+                    {isSaving ? (
+                      <div className="flex items-center">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                        Saving...
+                      </div>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={handleCancelEdit} disabled={isSaving}>
                     Cancel
                   </Button>
                 </div>

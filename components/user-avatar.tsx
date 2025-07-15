@@ -22,9 +22,14 @@ export function UserAvatar() {
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
+      } else {
+        // Handle cases where user data fetch fails (e.g., not authenticated)
+        console.error("Failed to fetch user data for avatar:", response.statusText)
+        setUser(null) // Ensure user is null if fetch fails
       }
     } catch (error) {
-      console.error("Failed to fetch user:", error)
+      console.error("Error fetching user for avatar:", error)
+      setUser(null) // Ensure user is null on network/other errors
     }
   }
 
@@ -39,7 +44,7 @@ export function UserAvatar() {
   return (
     <div className="flex items-center space-x-2">
       <img
-        src={user.avatar || "/placeholder.svg?height=32&width=32"}
+        src={user.avatar || "/placeholder.svg?height=32&width=32"} // Use Discord avatar or placeholder
         alt={user.username}
         className="w-8 h-8 rounded-full"
       />

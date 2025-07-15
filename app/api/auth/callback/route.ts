@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const userAgent = getUserAgent(request)
 
   try {
-    // Test database connection first
+    // Test database connection
     const dbConnected = await testConnection()
     if (!dbConnected) {
       console.error("Database connection failed during auth callback")
@@ -22,13 +22,11 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get("error")
     const state = searchParams.get("state")
 
-    // Handle Discord OAuth errors
     if (error) {
       await Logger.logError("discord_oauth_error", error, undefined, { ip, userAgent })
       return NextResponse.redirect(`${config.baseUrl}/?error=discord_${error}`)
     }
 
-    // Validate required parameters
     if (!code) {
       await Logger.logError("oauth_callback_no_code", "Authorization code missing", undefined, { ip, userAgent })
       return NextResponse.redirect(`${config.baseUrl}/?error=no_code`)
@@ -39,11 +37,8 @@ export async function GET(request: NextRequest) {
     let userId: string
 
     try {
-      // Exchange code for access token
       const tokenData = await exchangeCodeForToken(code)
       const discord = new DiscordAPI(tokenData.access_token)
-
-      // Get user info from Discord
       discordUser = await discord.getCurrentUser()
       discordGuilds = await discord.getUserGuilds()
       userId = discordUser.id
@@ -58,15 +53,15 @@ export async function GET(request: NextRequest) {
       })
     } catch (discordError) {
       const errorMessage = discordError instanceof Error ? discordError.message : "Unknown Discord API error"
-      console.error("Discord API error:", discordError)
+      console.error("Discord API error during auth callback:", discordError)
       await Logger.logError("discord_api_error", errorMessage, undefined, { ip, userAgent })
       return NextResponse.redirect(`${config.baseUrl}/?error=discord_api_failed`)
     }
 
     try {
-      // Save/update user in database
       const db = await getDatabase()
-      const user = await db.collection("users").findOneAndUpdate(
+      // Update or insert user
+      await db.collection("users").updateOne(
         { discordId: discordUser.id },
         {
           $set: {
@@ -84,23 +79,22 @@ export async function GET(request: NextRequest) {
             createdAt: new Date(),
           },
         },
-        { upsert: true, returnDocument: "after" },
+        { upsert: true },
       )
 
-      if (!user.value) {
+      const user = await db.collection("users").findOne({ discordId: discordUser.id })
+      if (!user) {
+        console.error("User fetch after update failed")
         throw new Error("Failed to create/update user")
       }
 
-      // Generate JWT token
       const authToken = generateAuthToken({
         discordId: discordUser.id,
         username: discordUser.username,
       })
 
-      // Log successful login
       await Logger.logLogin(discordUser.id, true, ip, userAgent)
 
-      // Set secure cookie and redirect
       const response = NextResponse.redirect(`${config.baseUrl}/dashboard/guilds`)
       response.cookies.set(config.cookies.authToken, authToken, {
         httpOnly: true,
@@ -113,14 +107,14 @@ export async function GET(request: NextRequest) {
       return response
     } catch (dbError) {
       const errorMessage = dbError instanceof Error ? dbError.message : "Database error"
-      console.error("Database error during auth:", dbError)
+      console.error("Database error during auth (update/find):", dbError)
       await Logger.logError("database_error", errorMessage, userId, { ip, userAgent })
       await Logger.logLogin(userId, false, ip, userAgent, errorMessage)
       return NextResponse.redirect(`${config.baseUrl}/?error=database_failed`)
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown callback error"
-    console.error("Auth callback error:", error)
+    console.error("Auth callback error (top-level catch):", error)
     await Logger.logError("auth_callback_error", errorMessage, undefined, { ip, userAgent })
     return NextResponse.redirect(`${config.baseUrl}/?error=auth_failed`)
   }
