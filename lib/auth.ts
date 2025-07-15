@@ -65,3 +65,5 @@ export function generateAuthToken(user: Pick<AuthUser, "discordId" | "username">
     { expiresIn: config.jwt.expiresIn },
   )
 }
+
+export { getClientIP, getUserAgent } from "./utils"
