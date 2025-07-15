@@ -35,7 +35,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const discordApi = new DiscordAPI(currentUser.accessToken || "") // Assuming accessToken is stored or can be retrieved
+    const discordAccessToken = request.cookies.get("discord-access-token")?.value
+    if (!discordAccessToken) {
+      await Logger.log({
+        level: "warn",
+        event: "discord_access_token_missing",
+        userId: user.discordId,
+        ip,
+        userAgent,
+        metadata: { reason: "Cannot fetch Discord guilds without token" },
+      })
+      return NextResponse.json({ error: "Missing Discord access token for guild fetching" }, { status: 403 })
+    }
+    const discordApi = new DiscordAPI(discordAccessToken)
     const userDiscordGuilds = await discordApi.getUserGuilds()
 
     const guildsWithBotStatus: (Guild & { canManage: boolean })[] = []

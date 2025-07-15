@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ users })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Get all users error"
+    console.error("API/Admin/Users/All: Error in GET handler:", errorMessage, error) // Added console.error
     await Logger.logError("get_all_users_error", errorMessage, undefined, { ip, userAgent })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

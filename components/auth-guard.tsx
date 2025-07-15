@@ -4,6 +4,8 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { XCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -47,7 +49,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) {
-    return null // Will redirect to login
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-background to-purple-800 flex items-center justify-center">
+        <div className="text-center">
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-red-200 mb-2">Authentication Failed</h3>
+          <p className="text-red-300">Please try logging in again.</p>
+          <Button onClick={() => router.push("/")} className="mt-4 bg-primary-600 hover:bg-primary-700 text-white">
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>

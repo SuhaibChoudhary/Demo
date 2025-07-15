@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ guilds })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Get all guilds error"
+    console.error("API/Admin/Guilds/All: Error in GET handler:", errorMessage, error) // Added console.error
     await Logger.logError("get_all_guilds_error", errorMessage, undefined, { ip, userAgent })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

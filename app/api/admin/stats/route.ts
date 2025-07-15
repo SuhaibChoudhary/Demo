@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Get admin stats error"
+    console.error("API/Admin/Stats: Error in GET handler:", errorMessage, error) // Added console.error
     await Logger.logError("get_admin_stats_error", errorMessage, undefined, { ip, userAgent })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
