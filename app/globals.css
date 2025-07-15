@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .neumorphic {
+    @apply bg-gradient-to-br from-pink-900/20 to-fuchsia-800/10 backdrop-blur-sm;
+    box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.4), -8px -8px 16px rgba(236, 72, 153, 0.1);
+  }
+
+  .neumorphic-inset {
+    @apply bg-gradient-to-br from-pink-900/10 to-fuchsia-800/20;
+    box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.4), inset -4px -4px 8px rgba(236, 72, 153, 0.1);
+  }
+
+  .glass {
+    @apply bg-pink-500/5 backdrop-blur-md border border-pink-300/10;
+  }
+}
