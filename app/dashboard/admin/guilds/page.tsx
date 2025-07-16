@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { getDiscordGuildIconUrl } from "@/lib/discord"
-import { Crown, XCircle, ShieldOff, Search } from "lucide-react"
+import { Crown, ShieldOff, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { ErrorDisplay } from "@/components/error-display" // Import ErrorDisplay
 
 interface AdminGuild {
   _id: string
@@ -37,16 +38,19 @@ export default function AdminGuildManagementPage() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch("/api/admin/guilds/all") // Assuming this API exists or will be created
+      const response = await fetch("/api/admin/guilds/all")
       if (response.ok) {
         const data = await response.json()
+        console.log("AdminGuildManagementPage: Fetched guilds:", data.guilds) // Log fetched data
         setGuilds(data.guilds)
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to fetch guild data.")
+        const errorMessage = errorData.error || "Failed to fetch guild data."
+        console.error("AdminGuildManagementPage: Error fetching guilds:", errorMessage, errorData) // Log error
+        setError(errorMessage)
       }
     } catch (err) {
-      console.error("Error fetching guilds:", err)
+      console.error("AdminGuildManagementPage: Unexpected error fetching guilds:", err) // Log unexpected error
       setError("An unexpected error occurred while fetching guilds.")
     } finally {
       setLoading(false)
@@ -78,14 +82,16 @@ export default function AdminGuildManagementPage() {
         fetchAllGuilds() // Refresh the list
       } else {
         const errorData = await response.json()
+        const errorMessage = errorData.error || "Failed to remove premium."
+        console.error("AdminGuildManagementPage: Error removing premium:", errorMessage, errorData) // Log error
         toast({
           title: "Error",
-          description: errorData.error || "Failed to remove premium.",
+          description: errorMessage,
           variant: "destructive",
         })
       }
     } catch (err) {
-      console.error("Error removing premium:", err)
+      console.error("AdminGuildManagementPage: Unexpected error removing premium:", err) // Log unexpected error
       toast({
         title: "Error",
         description: "An unexpected error occurred while removing premium.",
@@ -112,11 +118,7 @@ export default function AdminGuildManagementPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <div className="text-center py-12">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
-          <p className="text-red-300">{error}</p>
-        </div>
+        <ErrorDisplay message={error} />
       </div>
     )
   }

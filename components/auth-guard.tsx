@@ -27,11 +27,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
       if (response.ok) {
         setIsAuthenticated(true)
       } else {
+        console.error("AuthGuard: Authentication check failed. Status:", response.status, response.statusText)
+        const errorData = await response.json().catch(() => ({ error: "No JSON response" }))
+        console.error("AuthGuard: API response error data:", errorData)
         setIsAuthenticated(false)
         router.push("/")
       }
     } catch (error) {
-      console.error("AuthGuard: Error during authentication check:", error)
+      console.error("AuthGuard: Network or unexpected error during authentication check:", error)
       setIsAuthenticated(false)
       router.push("/")
     }

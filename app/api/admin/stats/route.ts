@@ -12,9 +12,6 @@ export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request)
 
-    console.log("API/Admin/Stats: User Discord ID:", user?.discordId)
-    console.log("API/Admin/Stats: Config Admin Discord ID:", config.adminDiscordId)
-
     // Admin check
     if (!user || user.discordId !== config.adminDiscordId) {
       await Logger.log({

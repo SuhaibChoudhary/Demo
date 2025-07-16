@@ -1,8 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, Crown, XCircle } from "lucide-react"
+import { Users, Crown } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { ErrorDisplay } from "@/components/error-display" // Import ErrorDisplay
+import { getDiscordAvatarUrl } from "@/lib/discord" // Import avatar helper
 
 interface AdminUser {
   discordId: string
@@ -33,13 +35,16 @@ export default function AdminUserManagementPage() {
       const response = await fetch("/api/admin/users/all")
       if (response.ok) {
         const data = await response.json()
+        console.log("AdminUserManagementPage: Fetched users:", data.users) // Log fetched data
         setUsers(data.users)
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to fetch user data.")
+        const errorMessage = errorData.error || "Failed to fetch user data."
+        console.error("AdminUserManagementPage: Error fetching users:", errorMessage, errorData) // Log error
+        setError(errorMessage)
       }
     } catch (err) {
-      console.error("Error fetching users:", err)
+      console.error("AdminUserManagementPage: Unexpected error fetching users:", err) // Log unexpected error
       setError("An unexpected error occurred while fetching users.")
     } finally {
       setLoading(false)
@@ -64,11 +69,7 @@ export default function AdminUserManagementPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <div className="text-center py-12">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
-          <p className="text-red-300">{error}</p>
-        </div>
+        <ErrorDisplay message={error} />
       </div>
     )
   }
@@ -109,7 +110,7 @@ export default function AdminUserManagementPage() {
                 <div key={user.discordId} className="bg-white/5 p-4 rounded-xl flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <img
-                      src={user.avatar || "/placeholder.svg?height=40&width=40"}
+                      src={getDiscordAvatarUrl(user.discordId, user.avatar) || "/placeholder.svg?height=40&width=40"}
                       alt={user.username}
                       className="w-10 h-10 rounded-full"
                     />

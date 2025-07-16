@@ -1,11 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-
 import Link from "next/link"
-
 import { useState, useEffect } from "react"
 import { Users, Server, Crown, Gift, CheckCircle, XCircle } from "lucide-react"
+import { ErrorDisplay } from "@/components/error-display" // Import ErrorDisplay
 
 interface AdminStats {
   totalUsers: number
@@ -31,13 +30,16 @@ export default function AdminDashboardPage() {
       const response = await fetch("/api/admin/stats")
       if (response.ok) {
         const data = await response.json()
+        console.log("AdminDashboardPage: Fetched stats:", data) // Log fetched data
         setStats(data)
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to fetch admin statistics.")
+        const errorMessage = errorData.error || "Failed to fetch admin statistics."
+        console.error("AdminDashboardPage: Error fetching stats:", errorMessage, errorData) // Log error
+        setError(errorMessage)
       }
     } catch (err) {
-      console.error("Error fetching admin stats:", err)
+      console.error("AdminDashboardPage: Unexpected error fetching stats:", err) // Log unexpected error
       setError("An unexpected error occurred while fetching statistics.")
     } finally {
       setLoading(false)
@@ -58,11 +60,7 @@ export default function AdminDashboardPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <div className="text-center py-12">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
-          <p className="text-red-300">{error}</p>
-        </div>
+        <ErrorDisplay message={error} />
       </div>
     )
   }

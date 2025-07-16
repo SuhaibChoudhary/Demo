@@ -5,6 +5,7 @@ import { Gift, Copy, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { ErrorDisplay } from "@/components/error-display" // Import ErrorDisplay
 import type { RedeemCode } from "@/lib/models/RedeemCode" // Import RedeemCode
 
 export default function AdminRedeemCodeManagementPage() {
@@ -31,13 +32,16 @@ export default function AdminRedeemCodeManagementPage() {
       const response = await fetch("/api/admin/redeem-codes/all")
       if (response.ok) {
         const data = await response.json()
-        setRedeemCodes(data.redeemCodes)
+        console.log("AdminRedeemCodeManagementPage: Fetched redeem codes:", data.codes) // Log fetched data
+        setRedeemCodes(data.codes)
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to fetch redeem codes.")
+        const errorMessage = errorData.error || "Failed to fetch redeem codes."
+        console.error("AdminRedeemCodeManagementPage: Error fetching redeem codes:", errorMessage, errorData) // Log error
+        setError(errorMessage)
       }
     } catch (err) {
-      console.error("Error fetching redeem codes:", err)
+      console.error("AdminRedeemCodeManagementPage: Unexpected error fetching redeem codes:", err) // Log unexpected error
       setError("An unexpected error occurred while fetching redeem codes.")
     } finally {
       setLoading(false)
@@ -81,15 +85,17 @@ export default function AdminRedeemCodeManagementPage() {
         fetchAllRedeemCodes() // Refresh the list
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to add redeem codes.")
+        const errorMessage = errorData.error || "Failed to add redeem codes."
+        console.error("AdminRedeemCodeManagementPage: Error adding redeem codes:", errorMessage, errorData) // Log error
+        setError(errorMessage)
         toast({
           title: "Error",
-          description: errorData.error || "Failed to add redeem codes.",
+          description: errorMessage,
           variant: "destructive",
         })
       }
     } catch (err) {
-      console.error("Error adding redeem codes:", err)
+      console.error("AdminRedeemCodeManagementPage: Unexpected error adding redeem codes:", err) // Log unexpected error
       setError("An unexpected error occurred while adding redeem codes.")
       toast({
         title: "Error",
@@ -124,15 +130,17 @@ export default function AdminRedeemCodeManagementPage() {
         fetchAllRedeemCodes() // Refresh the list
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to delete redeem code.")
+        const errorMessage = errorData.error || "Failed to delete redeem code."
+        console.error("AdminRedeemCodeManagementPage: Error deleting redeem code:", errorMessage, errorData) // Log error
+        setError(errorMessage)
         toast({
           title: "Error",
-          description: errorData.error || "Failed to delete redeem code.",
+          description: errorMessage,
           variant: "destructive",
         })
       }
     } catch (err) {
-      console.error("Error deleting redeem code:", err)
+      console.error("AdminRedeemCodeManagementPage: Unexpected error deleting redeem code:", err) // Log unexpected error
       setError("An unexpected error occurred while deleting redeem code.")
       toast({
         title: "Error",
@@ -163,11 +171,7 @@ export default function AdminRedeemCodeManagementPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto animate-fade-in">
-        <div className="text-center py-12">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-red-200 mb-2">Error</h3>
-          <p className="text-red-300">{error}</p>
-        </div>
+        <ErrorDisplay message={error} />
       </div>
     )
   }
