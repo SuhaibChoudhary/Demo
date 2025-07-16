@@ -4,6 +4,8 @@ import { verifyAuth } from "@/lib/auth"
 import { config } from "@/lib/config"
 import { headers } from "next/headers"
 import { AdminSidebar } from "@/components/admin-sidebar" // Import AdminSidebar
+// Import SidebarProvider
+import { SidebarProvider } from "@/components/ui/sidebar"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const headersList = headers()
@@ -25,9 +27,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-theme(spacing.8))] lg:min-h-screen">
-      <AdminSidebar />
-      <main className="flex-1 p-4 lg:p-8">{children}</main>
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-[calc(100vh-theme(spacing.8))] lg:min-h-screen">
+        <AdminSidebar />
+        <main className="flex-1 p-4 lg:p-8">{children}</main>
+      </div>
+    </SidebarProvider>
   )
 }
