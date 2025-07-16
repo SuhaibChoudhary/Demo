@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { getDiscordGuildIconUrl } from "@/lib/discord"
-import { Crown, ShieldOff, Search } from "lucide-react"
+import { Crown, Search, Settings } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
-import { ErrorDisplay } from "@/components/error-display" // Import ErrorDisplay
+import { ErrorDisplay } from "@/components/error-display"
 
 interface AdminGuild {
   _id: string
@@ -30,6 +33,13 @@ export default function AdminGuildManagementPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
 
+  // State for premium edit modal
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false)
+  const [selectedGuild, setSelectedGuild] = useState<AdminGuild | null>(null)
+  const [editPremiumActive, setEditPremiumActive] = useState(false)
+  const [editExpiryDays, setEditExpiryDays] = useState<number | undefined>(undefined)
+  const [isUpdatingPremium, setIsUpdatingPremium] = useState(false)
+
   useEffect(() => {
     fetchAllGuilds()
   }, [])
@@ -41,49 +51,63 @@ export default function AdminGuildManagementPage() {
       const response = await fetch("/api/admin/guilds/all")
       if (response.ok) {
         const data = await response.json()
-        console.log("AdminGuildManagementPage: Fetched guilds:", data.guilds) // Log fetched data
         setGuilds(data.guilds)
       } else {
         const errorData = await response.json()
         const errorMessage = errorData.error || "Failed to fetch guild data."
-        console.error("AdminGuildManagementPage: Error fetching guilds:", errorMessage, errorData) // Log error
         setError(errorMessage)
       }
     } catch (err) {
-      console.error("AdminGuildManagementPage: Unexpected error fetching guilds:", err) // Log unexpected error
+      console.error("AdminGuildManagementPage: Unexpected error fetching guilds:", err)
       setError("An unexpected error occurred while fetching guilds.")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleRemovePremium = async (guildId: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to remove premium from guild "${guilds.find((g) => g.guildId === guildId)?.name}"?`,
-      )
-    ) {
-      return
+  const openPremiumModal = (guild: AdminGuild) => {
+    setSelectedGuild(guild)
+    setEditPremiumActive(guild.premium?.active || false)
+    if (guild.premium?.expiresAt) {
+      const expiryDate = new Date(guild.premium.expiresAt)
+      const now = new Date()
+      const diffTime = expiryDate.getTime() - now.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      setEditExpiryDays(Math.max(0, diffDays)) // Ensure it's not negative
+    } else {
+      setEditExpiryDays(0) // No expiry
     }
+    setIsPremiumModalOpen(true)
+  }
+
+  const handleUpdatePremium = async () => {
+    if (!selectedGuild) return
+
+    setIsUpdatingPremium(true)
     try {
-      const response = await fetch(`/api/admin/guilds/${guildId}/remove-premium`, {
+      const response = await fetch(`/api/admin/guilds/${selectedGuild.guildId}/update-premium`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          active: editPremiumActive,
+          expiryDays: editExpiryDays,
+        }),
       })
 
       if (response.ok) {
+        const data = await response.json()
         toast({
           title: "Success!",
-          description: "Premium removed from guild.",
+          description: data.message,
           variant: "default",
         })
         fetchAllGuilds() // Refresh the list
+        setIsPremiumModalOpen(false)
       } else {
         const errorData = await response.json()
-        const errorMessage = errorData.error || "Failed to remove premium."
-        console.error("AdminGuildManagementPage: Error removing premium:", errorMessage, errorData) // Log error
+        const errorMessage = errorData.error || "Failed to update premium."
         toast({
           title: "Error",
           description: errorMessage,
@@ -91,12 +115,14 @@ export default function AdminGuildManagementPage() {
         })
       }
     } catch (err) {
-      console.error("AdminGuildManagementPage: Unexpected error removing premium:", err) // Log unexpected error
+      console.error("Error updating guild premium:", err)
       toast({
         title: "Error",
-        description: "An unexpected error occurred while removing premium.",
+        description: "An unexpected error occurred while updating premium.",
         variant: "destructive",
       })
+    } finally {
+      setIsUpdatingPremium(false)
     }
   }
 
@@ -185,17 +211,10 @@ export default function AdminGuildManagementPage() {
                         </p>
                       )}
                     </div>
-                    {isPremiumActive && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:text-red-500"
-                        onClick={() => handleRemovePremium(guild.guildId)}
-                      >
-                        <ShieldOff className="w-4 h-4" />
-                        <span className="sr-only">Remove Premium</span>
-                      </Button>
-                    )}
+                    <Button variant="ghost" size="sm" onClick={() => openPremiumModal(guild)}>
+                      <Settings className="w-4 h-4" />
+                      <span className="sr-only">Edit Premium</span>
+                    </Button>
                   </div>
                 </div>
               )
@@ -203,6 +222,66 @@ export default function AdminGuildManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Premium Edit Modal */}
+      <Dialog open={isPremiumModalOpen} onOpenChange={setIsPremiumModalOpen}>
+        <DialogContent className="neumorphic p-6 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white text-2xl mb-2">Edit Premium for {selectedGuild?.name}</DialogTitle>
+            <p className="text-foreground text-sm">Adjust premium status and expiry for this guild.</p>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="premiumActive" className="text-foreground">
+                Premium Active
+              </Label>
+              <Switch
+                id="premiumActive"
+                checked={editPremiumActive}
+                onCheckedChange={setEditPremiumActive}
+                disabled={isUpdatingPremium}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="expiryDays" className="text-right text-foreground">
+                Expiry (Days)
+              </Label>
+              <Input
+                id="expiryDays"
+                type="number"
+                value={editExpiryDays}
+                onChange={(e) => setEditExpiryDays(Math.max(0, Number(e.target.value)))}
+                className="col-span-3 neumorphic-inset bg-transparent border-0 text-white"
+                min={0}
+                placeholder="0 for no expiry"
+                disabled={isUpdatingPremium || !editPremiumActive}
+              />
+            </div>
+            <p className="text-xs text-gray-400 text-right">
+              Set to 0 days for no expiry. Current expiry:{" "}
+              {selectedGuild?.premium?.expiresAt
+                ? new Date(selectedGuild.premium.expiresAt).toLocaleDateString()
+                : "N/A"}
+            </p>
+          </div>
+          <DialogFooter className="flex justify-end">
+            <Button
+              onClick={handleUpdatePremium}
+              disabled={isUpdatingPremium}
+              className="bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white"
+            >
+              {isUpdatingPremium ? (
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Updating...
+                </div>
+              ) : (
+                "Update Premium"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

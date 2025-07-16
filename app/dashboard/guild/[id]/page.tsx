@@ -2,37 +2,29 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
-import {
-  Save,
-  Globe,
-  Shield,
-  MessageSquare,
-  Volume2,
-  Eye,
-  Settings,
-  ArrowLeft,
-  Lock,
-  Crown,
-  CheckCircle,
-  XCircle,
-  Bot,
-} from "lucide-react"
+import { Save, Globe, Volume2, Eye, ArrowLeft, Lock, Crown, CheckCircle, XCircle, Bot } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea" // Import Textarea
+import { GuildSettingsTabs } from "@/components/guild-settings-tabs" // Import the new component
 
 interface GuildConfig {
   prefix: string
   language: string
   automod: boolean
   logging: boolean
+  logChannelId?: string // Updated
   welcomeMessages: boolean
-  welcomeChannel?: string // New
-  welcomeMessage?: string // New
+  welcomeChannelId?: string // Updated
+  welcomeMessage?: string // Updated
   musicEnabled: boolean
   moderationLogs: boolean
+  moderationChannelId?: string // Updated
+  youtubeEnabled: boolean // New
+  giveawayEnabled: boolean // New
+  announcementChannelId?: string // New
+  autoRoleEnabled: boolean // New
+  autoRoleId?: string // New
+  customCommands: { name: string; response: string }[]
 }
 
 interface GuildData {
@@ -43,7 +35,7 @@ interface GuildData {
     active: boolean
     expiresAt?: string
   }
-  botAdded: boolean // New
+  botAdded: boolean
   config: GuildConfig
 }
 
@@ -53,13 +45,21 @@ export default function GuildConfigPage() {
   const [config, setConfig] = useState<GuildConfig>({
     prefix: "!",
     language: "en",
-    automod: true,
-    logging: true,
+    automod: false,
+    logging: false,
+    logChannelId: undefined,
     welcomeMessages: false,
-    welcomeChannel: undefined, // Initialize
-    welcomeMessage: undefined, // Initialize
-    musicEnabled: true,
-    moderationLogs: true,
+    welcomeChannelId: undefined,
+    welcomeMessage: undefined,
+    musicEnabled: false,
+    moderationLogs: false,
+    moderationChannelId: undefined,
+    youtubeEnabled: false,
+    giveawayEnabled: false,
+    announcementChannelId: undefined,
+    autoRoleEnabled: false,
+    autoRoleId: undefined,
+    customCommands: [],
   })
   const [isSaving, setIsSaving] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -68,7 +68,7 @@ export default function GuildConfigPage() {
   const [userPremiumCount, setUserPremiumCount] = useState(0)
   const [isActivatingPremium, setIsActivatingPremium] = useState(false)
   const [premiumMessage, setPremiumMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [showConfetti, setShowConfetti] = useState(false) // State for confetti animation
+  const [showConfetti, setShowConfetti] = useState(false)
 
   useEffect(() => {
     fetchGuildAndUserPremium()
@@ -147,7 +147,6 @@ export default function GuildConfigPage() {
         const data = await response.json()
         setPremiumMessage({ type: "success", text: data.message })
         setUserPremiumCount(data.newPremiumCount)
-        // Update guildData to reflect new premium status
         setGuildData((prev) =>
           prev
             ? {
@@ -156,8 +155,8 @@ export default function GuildConfigPage() {
               }
             : null,
         )
-        setShowConfetti(true) // Trigger confetti
-        setTimeout(() => setShowConfetti(false), 3000) // Hide confetti after 3 seconds
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 3000)
       } else {
         const errorData = await response.json()
         setPremiumMessage({ type: "error", text: errorData.error || "Failed to activate premium." })
@@ -169,14 +168,6 @@ export default function GuildConfigPage() {
       setIsActivatingPremium(false)
     }
   }
-
-  const languages = [
-    { code: "en", name: "English" },
-    { code: "es", name: "Spanish" },
-    { code: "fr", name: "French" },
-    { code: "de", name: "German" },
-    { code: "ja", name: "Japanese" },
-  ]
 
   const isGuildPremiumActive =
     guildData?.premium?.active && guildData.premium.expiresAt && new Date(guildData.premium.expiresAt) > new Date()
@@ -196,7 +187,6 @@ export default function GuildConfigPage() {
     <div className="max-w-4xl mx-auto animate-fade-in">
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          {/* Simple confetti animation - replace with a proper library if needed */}
           <div className="absolute w-4 h-4 bg-yellow-400 rounded-full animate-confetti-1" />
           <div className="absolute w-3 h-3 bg-pink-400 rounded-full animate-confetti-2" />
           <div className="absolute w-5 h-5 bg-blue-400 rounded-full animate-confetti-3" />
@@ -232,166 +222,9 @@ export default function GuildConfigPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Settings */}
+        {/* Main Settings Tabs */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Settings */}
-          <div className="neumorphic rounded-2xl p-6">
-            <div className="flex items-center mb-6">
-              <Settings className="w-6 h-6 text-primary-400 mr-3" />
-              <h2 className="text-xl font-semibold text-white">Basic Settings</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Command Prefix</label>
-                <Input
-                  type="text"
-                  value={config.prefix}
-                  onChange={(e) => setConfig({ ...config, prefix: e.target.value })}
-                  className="neumorphic-inset bg-transparent border-0 text-white"
-                  placeholder="!"
-                  disabled={!canManage}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Language</label>
-                <select
-                  value={config.language}
-                  onChange={(e) => setConfig({ ...config, language: e.target.value })}
-                  className="w-full neumorphic-inset bg-transparent border-0 text-white rounded-lg p-3 disabled:opacity-50"
-                  disabled={!canManage}
-                >
-                  {languages.map((lang) => (
-                    <option key={lang.code} value={lang.code} className="bg-background">
-                      {lang.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Welcome Messages Settings */}
-          <div className="neumorphic rounded-2xl p-6">
-            <div className="flex items-center mb-6">
-              <MessageSquare className="w-6 h-6 text-primary-400 mr-3" />
-              <h2 className="text-xl font-semibold text-white">Welcome Messages</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-white">Enable Welcome Messages</h3>
-                  <p className="text-sm text-foreground">Send a message when a new member joins</p>
-                </div>
-                <Switch
-                  checked={config.welcomeMessages}
-                  onCheckedChange={(checked) => setConfig({ ...config, welcomeMessages: checked })}
-                  disabled={!canManage}
-                />
-              </div>
-
-              {config.welcomeMessages && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">Welcome Channel (ID)</label>
-                    <Input
-                      type="text"
-                      value={config.welcomeChannel || ""}
-                      onChange={(e) => setConfig({ ...config, welcomeChannel: e.target.value })}
-                      className="neumorphic-inset bg-transparent border-0 text-white"
-                      placeholder="e.g., 123456789012345678"
-                      disabled={!canManage}
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Enter the ID of the channel for welcome messages.</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">Custom Welcome Message</label>
-                    <Textarea
-                      value={config.welcomeMessage || ""}
-                      onChange={(e) => setConfig({ ...config, welcomeMessage: e.target.value })}
-                      className="neumorphic-inset bg-transparent border-0 text-white"
-                      placeholder="Welcome {user} to {server}! Enjoy your stay."
-                      rows={4}
-                      disabled={!canManage}
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Use {"{user}"} for username, {"{server}"} for server name.
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Moderation Settings */}
-          <div className="neumorphic rounded-2xl p-6">
-            <div className="flex items-center mb-6">
-              <Shield className="w-6 h-6 text-primary-400 mr-3" />
-              <h2 className="text-xl font-semibold text-white">Moderation</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-white">Auto Moderation</h3>
-                  <p className="text-sm text-foreground">Automatically moderate spam and inappropriate content</p>
-                </div>
-                <Switch
-                  checked={config.automod}
-                  onCheckedChange={(checked) => setConfig({ ...config, automod: checked })}
-                  disabled={!canManage}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-white">Moderation Logs</h3>
-                  <p className="text-sm text-foreground">Log moderation actions to a channel</p>
-                </div>
-                <Switch
-                  checked={config.moderationLogs}
-                  onCheckedChange={(checked) => setConfig({ ...config, moderationLogs: checked })}
-                  disabled={!canManage}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Other Features */}
-          <div className="neumorphic rounded-2xl p-6">
-            <div className="flex items-center mb-6">
-              <Volume2 className="w-6 h-6 text-primary-400 mr-3" />
-              <h2 className="text-xl font-semibold text-white">Other Features</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-white">Music Commands</h3>
-                  <p className="text-sm text-foreground">Enable music playback features</p>
-                </div>
-                <Switch
-                  checked={config.musicEnabled}
-                  onCheckedChange={(checked) => setConfig({ ...config, musicEnabled: checked })}
-                  disabled={!canManage}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-white">Activity Logging</h3>
-                  <p className="text-sm text-foreground">Log server activity and events</p>
-                </div>
-                <Switch
-                  checked={config.logging}
-                  onCheckedChange={(checked) => setConfig({ ...config, logging: checked })}
-                  disabled={!canManage}
-                />
-              </div>
-            </div>
-          </div>
+          <GuildSettingsTabs config={config} setConfig={setConfig} canManage={canManage} />
         </div>
 
         {/* Sidebar */}

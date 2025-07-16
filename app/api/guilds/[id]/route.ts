@@ -183,13 +183,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             language: newConfig.language || "en",
             automod: newConfig.automod || false,
             logging: newConfig.logging || false,
-            logChannel: newConfig.logChannel,
+            logChannelId: newConfig.logChannelId, // New
             welcomeMessages: newConfig.welcomeMessages || false,
-            welcomeChannel: newConfig.welcomeChannel, // New
+            welcomeChannelId: newConfig.welcomeChannelId, // New
             welcomeMessage: newConfig.welcomeMessage, // New
             musicEnabled: newConfig.musicEnabled || false,
             moderationLogs: newConfig.moderationLogs || false,
-            moderationChannel: newConfig.moderationChannel,
+            moderationChannelId: newConfig.moderationChannelId, // New
+            youtubeEnabled: newConfig.youtubeEnabled || false, // New
+            giveawayEnabled: newConfig.giveawayEnabled || false, // New
+            announcementChannelId: newConfig.announcementChannelId, // New
+            autoRoleEnabled: newConfig.autoRoleEnabled || false, // New
+            autoRoleId: newConfig.autoRoleId, // New
             customCommands: newConfig.customCommands || [],
           },
           updatedAt: new Date(),
